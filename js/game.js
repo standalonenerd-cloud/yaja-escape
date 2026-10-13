@@ -736,7 +736,7 @@ function openGhost(){
 function ghostQuiz(say){
   const earned = CHAIN.filter(isCleared).length;
   const pool = [];
-  for(const [rid,R] of Object.entries(ROOMS)) for(const [k,st] of Object.entries(R.stations)) if(S.solved[rid+"."+k]) st.qs.forEach(q => pool.push(q));
+  for(const [rid,R] of Object.entries(ROOMS)) for(const [k,st] of Object.entries(R.stations)) if(S.solved[rid+"."+k]) (st.qs || []).forEach(q => pool.push(q));
   if(!pool.length) return say("아직 푼 문제가 없잖아. 칠판 문제부터 풀고 와.");
   if(S.quizUsed >= earned && !TEACHER) return say("부적은 교실을 하나 풀 때마다 한 장씩만 줄 수 있어. 다음 교실을 풀고 와.");
   const q = pool[Math.floor(Math.random()*pool.length)], order = shuffle(q.opts.map((_,k)=>k));
@@ -765,9 +765,9 @@ function openStation(roomId, key){
   }
   show(`<span class="eyebrow">${R.name} · ${R.unit}</span><h3>${st.name}</h3>
     <div class="chalk">${esc(st.note)}</div>
-    <p class="say">${done ? "이미 푼 문제예요. 복습 삼아 다시 풀어 볼 수 있어요(기록에는 남지 않아요)." : `문제 ${st.qs.length}개를 모두 맞히면 이곳이 풀려요.`}</p>
+    <p class="say">${done ? "이미 푼 문제예요. 복습 삼아 다시 풀어 볼 수 있어요(기록에는 남지 않아요)." : (st.mode === "match" ? `짝 지우기: ${esc(st.rule)}. 패를 모두 지우면 이곳이 풀려요.` : st.mode === "type" ? `받아쓰기: 낱말 ${st.items.length}개를 직접 적으면 이곳이 풀려요.` : `문제 ${st.qs.length}개를 모두 맞히면 이곳이 풀려요.`)}</p>
     <div class="btnrow"><button class="btn" id="go">${done?"다시 풀기":"문제 풀기"}</button><button class="btn ghost" id="x">닫기</button></div>`,
-    () => { $("#go").onclick = () => question(roomId, key, 0); $("#x").onclick = hide; });
+    () => { $("#go").onclick = () => st.mode === "match" ? matchGame(roomId, key) : st.mode === "type" ? typeGame(roomId, key, 0, 0) : question(roomId, key, 0); $("#x").onclick = hide; });
 }
 function dots(i,n){ return `<div class="dots">${Array.from({length:n},(_,k)=>`<i class="${k<=i?"on":""}"></i>`).join("")}</div>`; }
 
@@ -849,6 +849,138 @@ function openRiddle(id){
     };
   });
 }
+/* ---------- 짝 지우기(사천성) ---------- */
+function matchGame(roomId, key){
+  const R = ROOMS[roomId], st = R.stations[key], replay = !!S.solved[roomId+"."+key];
+  const W = st.cols, H = st.rows, DX = [1,-1,0,0], DY = [0,0,1,-1];
+  const tiles = []; for(const [g,arr] of Object.entries(st.groups)) arr.forEach(t => tiles.push({ t, g }));
+  let grid = [], sel = null, hints = 0, misses = 0, left = tiles.length, busy = false;
+  const deal = list => { const sh = shuffle(list); grid = Array.from({length:H+2}, () => Array(W+2).fill(null)); let i = 0;
+    for(let y=1;y<=H;y++) for(let x=1;x<=W;x++) grid[y][x] = sh[i++] || null; };
+  const remaining = () => { const a = []; for(let y=1;y<=H;y++) for(let x=1;x<=W;x++) if(grid[y][x]) a.push(grid[y][x]); return a; };
+  const reshuffle = () => { const rem = shuffle(remaining()); let i = 0;
+    for(let y=1;y<=H;y++) for(let x=1;x<=W;x++) if(grid[y][x]) grid[y][x] = rem[i++]; };
+  function link(a, b){   // 선이 두 번까지만 꺾이는 길 찾기
+    const best = {}, q = [];
+    for(let d=0; d<4; d++) q.push({ x:a.x, y:a.y, d, turns:0, pts:[[a.x,a.y]] });
+    while(q.length){
+      const c = q.shift(), nx = c.x + DX[c.d], ny = c.y + DY[c.d];
+      if(nx < 0 || ny < 0 || nx > W+1 || ny > H+1) continue;
+      if(nx === b.x && ny === b.y) return c.pts.concat([[nx,ny]]);
+      if(grid[ny][nx]) continue;
+      const k = nx+","+ny+","+c.d; if(best[k] !== undefined && best[k] <= c.turns) continue; best[k] = c.turns;
+      q.push({ x:nx, y:ny, d:c.d, turns:c.turns, pts:c.pts });
+      if(c.turns < 2) for(let d2=0; d2<4; d2++) if(d2 !== c.d && d2 !== (c.d^1)) q.push({ x:nx, y:ny, d:d2, turns:c.turns+1, pts:c.pts.concat([[nx,ny]]) });
+    }
+    return null;
+  }
+  const pos = []; // 칸 좌표 찾기
+  function findPair(){
+    const cells = []; for(let y=1;y<=H;y++) for(let x=1;x<=W;x++) if(grid[y][x]) cells.push({ x, y, g:grid[y][x].g });
+    for(let i=0;i<cells.length;i++) for(let j=i+1;j<cells.length;j++) if(cells[i].g === cells[j].g && link(cells[i], cells[j])) return [cells[i], cells[j]];
+    return null;
+  }
+  deal(tiles); for(let n=0; n<60 && !findPair(); n++) reshuffle();
+  show(`<span class="eyebrow">${R.name} · ${esc(st.name)} · 짝 지우기</span>
+    <h3>${esc(st.rule)}</h3>
+    <p class="say">같은 무리의 패 두 개를 차례로 누르세요. 두 패를 잇는 선은 <b>두 번까지만 꺾일 수 있고</b>, 다른 패를 넘어갈 수 없어요. 판 바깥 테두리로는 지나갈 수 있어요.</p>
+    <div class="mwrap"><div class="mgrid" id="mgrid" style="grid-template-columns:14px repeat(${W},minmax(0,1fr)) 14px"></div><svg class="mline" id="mline"></svg></div>
+    <div id="fb"></div>
+    <div class="btnrow" id="ctl"><button class="btn ghost" id="mhint">힌트(짝 하나 알려 주기)</button><button class="btn ghost" id="mshuf">패 섞기</button><button class="btn ghost" id="mx">나중에 하기</button></div>`,
+  () => { render(); $("#mx").onclick = hide;
+    $("#mhint").onclick = () => { const p = findPair(); if(!p) return; hints++; [p[0],p[1]].forEach(c => cellEl(c.x,c.y).classList.add("hint")); };
+    $("#mshuf").onclick = () => { reshuffle(); for(let n=0; n<60 && !findPair(); n++) reshuffle(); sel = null; render(); }; });
+  function cellEl(x,y){ return $(`#mgrid [data-x="${x}"][data-y="${y}"]`); }
+  function render(){
+    const g = $("#mgrid"); g.innerHTML = "";
+    for(let y=0;y<=H+1;y++) for(let x=0;x<=W+1;x++){
+      const edge = x===0 || y===0 || x===W+1 || y===H+1, t = grid[y][x];
+      const el = document.createElement(edge ? "div" : "button");
+      el.dataset.x = x; el.dataset.y = y;
+      el.className = edge ? "medge" : "tile" + (t ? "" : " gone") + (t && /^[\u3131-\u318E]$/.test(t.t) ? " big" : "");
+      if(edge && (y===0 || y===H+1)) el.style.height = "14px";
+      if(!edge){ el.innerHTML = t ? t.t : ""; el.disabled = !t; if(TEACHER && t) el.title = t.g; el.onclick = () => pick(x,y); }
+      g.appendChild(el);
+    }
+  }
+  function drawLine(pts){
+    const svg = $("#mline"), box = $("#mgrid").getBoundingClientRect();
+    const xy = pts.map(([x,y]) => { const r = cellEl(x,y).getBoundingClientRect(); return [(r.left+r.right)/2 - box.left, (r.top+r.bottom)/2 - box.top]; });
+    svg.setAttribute("viewBox", `0 0 ${box.width} ${box.height}`);
+    svg.innerHTML = `<polyline points="${xy.map(p=>p.join(",")).join(" ")}" />`;
+    setTimeout(() => { svg.innerHTML = ""; }, 420);
+  }
+  function pick(x,y){
+    if(busy || !grid[y][x]) return;
+    const el = cellEl(x,y);
+    if(!sel){ sel = {x,y}; el.classList.add("sel"); return; }
+    if(sel.x === x && sel.y === y){ el.classList.remove("sel"); sel = null; return; }
+    const a = sel, A = grid[a.y][a.x], B = grid[y][x], ea = cellEl(a.x,a.y);
+    sel = null; ea.classList.remove("sel");
+    if(A.g !== B.g){
+      misses++; if(!replay){ S.wrong++; save(); flicker = .1; }
+      [ea, el].forEach(e => { e.classList.remove("shake"); void e.offsetWidth; e.classList.add("shake"); });
+      $("#fb").innerHTML = `<div class="gline">${esc(GHOST_WRONG[Math.floor(Math.random()*GHOST_WRONG.length)])} 둘은 같은 무리가 아니야.</div>`;
+      return;
+    }
+    const path = link(a, {x,y});
+    if(!path){ $("#fb").innerHTML = `<p class="hint">같은 무리는 맞아! 그런데 길이 막혔어. 선이 두 번 넘게 꺾이거나 다른 패를 넘으면 안 돼. 다른 패부터 지워 봐.</p>`; return; }
+    busy = true; drawLine(path); ea.classList.add("pop"); el.classList.add("pop");
+    $("#fb").innerHTML = `<div class="fb ok"><span><b>${esc(A.g)}</b> · ${A.t} — ${B.t}</span></div>`;
+    setTimeout(() => {
+      grid[a.y][a.x] = null; grid[y][x] = null; left -= 2; busy = false;
+      if(!left) return finishMatch();
+      if(!findPair()){ for(let n=0; n<60 && !findPair(); n++) reshuffle(); $("#fb").innerHTML = `<p class="hint">이을 수 있는 짝이 없어서 귀신이 패를 섞어 줬어.</p>`; }
+      render();
+    }, 380);
+  }
+  function finishMatch(){
+    const helped = hints > 0 || misses >= 3;
+    if(!replay){ helped ? S.qHelp++ : S.qSelf++; save(); }
+    $("#mgrid").innerHTML = ""; $("#mgrid").style.display = "none";
+    $("#fb").innerHTML = `<div class="fb ok"><span class="tag">${helped ? "도움 받아 해결" : "스스로 해결"} · 틀린 짝 ${misses}번 · 힌트 ${hints}번</span>${Object.entries(st.groups).map(([g,a]) => `<span><b>${esc(g)}</b>: ${a.join(", ")}</span>`).join("")}</div>`;
+    $("#ctl").innerHTML = `<button class="btn" id="nx">끝내기</button>`; $("#nx").onclick = () => stationDone(roomId, key, replay); $("#nx").focus();
+  }
+}
+
+/* ---------- 받아쓰기(타이핑) ---------- */
+function typeGame(roomId, key, i, helpedSoFar){
+  const R = ROOMS[roomId], st = R.stations[key], it = st.items[i], replay = !!S.solved[roomId+"."+key];
+  let w = 0, helped = false;
+  show(`${dots(i, st.items.length)}<span class="eyebrow">${R.name} · ${esc(st.name)} · 받아쓰기 ${i+1}/${st.items.length}</span>
+    <div class="word">${it.w}</div><p class="ctx">${esc(it.ask || st.ask)}</p>
+    <label class="answer">답 적기<input type="text" id="tin" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+    <div id="fb">${TEACHER ? `<p class="hint">교사용 정답: ${it.answer.join(", ")}</p>` : ""}</div>
+    <div class="btnrow" id="ctl"><button class="btn hot" id="tgo">확인</button><button class="btn ghost" id="hintB">힌트 보기</button><button class="btn ghost" id="later">나중에 하기</button></div>`,
+  () => {
+    setTimeout(() => $("#tin").focus(), 50);
+    $("#tin").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); $("#tgo") && $("#tgo").click(); } });
+    $("#later").onclick = hide;
+    $("#hintB").onclick = () => { helped = true; $("#fb").innerHTML = `<p class="hint">${esc(it.hint)}</p>`; };
+    $("#tgo").onclick = () => {
+      const val = norm($("#tin").value);
+      if(!val){ $("#fb").innerHTML = `<p class="hint">답을 적어 주세요.</p>`; return; }
+      if(it.answer.some(a => norm(a) === val)) return done(false);
+      w++; if(!replay){ S.wrong++; save(); flicker = .1; }
+      let extra = w >= 2 ? `<p class="hint">${esc(it.hint)}</p>` : "";
+      if(w >= 3) extra += `<div class="btnrow"><button class="btn ghost" id="reveal">정답 보기</button></div>`;
+      $("#fb").innerHTML = `<div class="gline">${esc(GHOST_WRONG[Math.floor(Math.random()*GHOST_WRONG.length)])}</div>${extra}`;
+      if($("#reveal")) $("#reveal").onclick = () => done(true);
+      $("#tin").select();
+    };
+  });
+  function done(revealed){
+    const h = helped || w >= 2 || revealed;
+    if(!replay){ h ? S.qHelp++ : S.qSelf++; save(); }
+    $("#tin").disabled = true;
+    $("#fb").innerHTML = `<div class="fb ok"><span class="tag">${revealed ? "정답 확인" : h ? "도움 받아 해결" : "스스로 해결"} · 정답: ${esc(it.answer[0])}</span><span>${esc(it.why)}</span></div>`;
+    const last = i+1 >= st.items.length;
+    $("#ctl").innerHTML = `<button class="btn" id="nx">${last ? "끝내기" : "다음 낱말"}</button>`;
+    $("#nx").onclick = () => last ? stationDone(roomId, key, replay) : typeGame(roomId, key, i+1, helpedSoFar || h);
+    $("#nx").focus();
+  }
+}
+
 function stationDone(roomId, key, replay){
   const R = ROOMS[roomId];
   if(!replay){ S.solved[roomId+"."+key] = true; }
