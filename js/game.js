@@ -14,7 +14,7 @@ const shuffle = a => { a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Mat
 /* 그림 불러오기 */
 const IMG = {};
 function loadImg(k, f){ const i = new Image(); i.src = "assets/" + f; IMG[k] = i; }
-["char_player_down","char_player_up","char_player_left","char_player_right","char_ghost","obj_charm","obj_door","obj_door_locked","tile_hall_floor","tile_hall_wall"].forEach(n => loadImg(n, n + ".png"));
+["char_player_down","char_player_up","char_player_left","char_player_right","char_ghost","obj_charm","obj_door","obj_door_locked","tile_hall_floor","tile_hall_wall","logo"].forEach(n => loadImg(n, n + ".png"));
 ["room_class","room_staff","room_art","room_nurse","room_counsel","room_safety","room_yewon","room_toilet","obj_stairs"].forEach(n => loadImg(n, n + ".jpg"));
 const ready = k => IMG[k] && IMG[k].complete && IMG[k].naturalWidth > 0;
 
@@ -27,38 +27,38 @@ const ROOM_IMG = { c21:"class", c22:"class", c23:"class", c24:"class", c25:"clas
    stations: 문제를 푸는 물건 · props: 살펴볼 수 있는 물건 [열,행,너비,높이,살폈을 때 문구] */
 const DESK = "누군가 두고 간 문법 노트. 형광펜 자국이 빽빽하다.";
 const LAYOUT = {
-  class: { floor:[[2,2,15,8],[8,10,5,1]], exit:[14,10,1,1], spawn:[14,9], ghost:[15,3],
+  class: { logo:[17,4], floor:[[2,2,15,8],[8,10,5,1]], exit:[14,10,1,1], spawn:[14,9], ghost:[15,3],
     stations:{ board:[5,1,8,1], desk:[8,2,2,2], locker:[1,10,7,1] },
     props:[[3,4,2,1,DESK],[6,4,2,1,DESK],[10,4,2,1,DESK],[13,4,2,1,DESK],[3,6,2,1,DESK],[6,6,2,1,DESK],[10,6,2,1,DESK],
       [13,6,2,1,"책상에 연필로 쓴 낙서: '문법 귀신 진짜 있음. 2-1반까지 버텨.'"],[3,8,2,1,DESK],[6,8,2,1,DESK],[10,8,2,1,DESK],[13,8,2,1,DESK],
       [13,1,3,1,"게시판: '야간 자율 학습 22:00 종료. 마지막에 나가는 사람은 소등.'"]] },
-  staff: { floor:[[1,1,16,9],[1,10,11,1]], exit:[12,10,5,1], spawn:[14,9],
+  staff: { logo:[0,6], floor:[[1,1,16,9],[1,10,11,1]], exit:[12,10,5,1], spawn:[14,9],
     stations:{ main:[11,4,3,3] },
     props:[[2,2,6,3,"선생님들 책상 위에 수행평가 채점지가 쌓여 있다."],[2,7,6,3,"모니터가 꺼져 있다. 화면에 네 얼굴이 비친다."],
       [9,1,8,1,"서류함. 맨 아래 칸이 조금 열려 있다."],[15,5,2,2,"복사기가 혼자 '위잉' 하고 한 장을 뱉는다. 백지다."]] },
-  art: { floor:[[1,3,16,6],[1,9,11,2]], exit:[12,9,5,2], spawn:[14,8],
+  art: { logo:[17,7], floor:[[1,3,16,6],[1,9,11,2]], exit:[12,9,5,2], spawn:[14,8],
     stations:{ main:[7,3,4,4] },
     props:[[1,3,2,6,"물감 묻은 개수대. 물방울이 똑, 똑 떨어진다."],[1,2,6,1,"물감 병이 색깔별로 줄 서 있다."],
       [4,4,2,2,"이젤 위 그림 속 도형이 조금 움직인 것 같다."],[12,3,2,2,"별 그림. 아까보다 별이 하나 늘었다."],[4,7,2,2,"빨간 동그라미가 너를 보는 것 같다."],
       [12,6,2,2,"파란 별이 반짝인다."],[6,8,2,2,"뒤집어 놓은 캔버스."],[10,8,2,2,"뒤집어 놓은 캔버스. 뒷면에 손자국이 있다."],
       [15,4,2,3,"석고상. 아까는 분명 창문 쪽을 보고 있었는데…"]] },
-  nurse: { floor:[[1,2,16,9]], exit:[17,7,1,4], spawn:[16,8],
+  nurse: { logo:[7,1], floor:[[1,2,16,9]], exit:[17,7,1,4], spawn:[16,8],
     stations:{ main:[13,3,4,2] },
     props:[[1,2,5,3,"침대 커튼이 살짝 흔들린다. 바람은 없는데."],[1,6,5,5,"베개가 누가 방금 누웠던 것처럼 움푹하다."],
       [9,1,4,2,"약장 유리에 네 얼굴이 비친다. 뒤에… 아무도 없다."]] },
-  counsel: { floor:[[1,3,16,8]], exit:[13,8,4,3], spawn:[14,7],
+  counsel: { logo:[11,2], floor:[[1,3,16,8]], exit:[13,8,4,3], spawn:[14,7],
     stations:{ main:[6,4,4,3] },
     props:[[1,2,9,1,"대학 안내 책자가 빽빽하다. 한 권이 툭 떨어진다."],[1,3,1,8,"진로 안내 책자. 책장 맨 위에 먼지가 쌓였다."],
       [14,3,3,4,"화분 잎이 아주 천천히 고개를 돌린다."],[6,9,5,2,"상담용 소파. 앉으면 진로 고민이 저절로 떠오를 것 같다."]] },
-  safety: { floor:[[2,2,14,9]], exit:[13,10,3,1], spawn:[14,9],
+  safety: { logo:[3,1], floor:[[2,2,14,9]], exit:[13,10,3,1], spawn:[14,9],
     stations:{ main:[5,1,8,1] },
     props:[[1,4,1,1,"소화기. 압력계 바늘이 초록색에 있다. 다행이다."],[1,6,1,1,"소화기가 하나 더 있다."],
       [13,1,2,1,"구급함. 반창고가 한 상자 가득하다."],[4,4,4,5,"안전 점검 서류가 가지런히 놓여 있다."]] },
-  yewon: { floor:[[1,2,16,9]], exit:[13,11,3,1], spawn:[14,10],
+  yewon: { logo:[16,1], floor:[[1,2,16,9]], exit:[13,11,3,1], spawn:[14,10],
     stations:{ main:[8,2,2,2] },
     props:[[3,1,12,1,"병풍 그림 속 학이 날개를 접는다."],[2,3,5,2,"방석이 가지런히 놓인 낮은 상. 바르게 앉아야 할 것 같다."],
       [2,6,5,2,"낮은 상 위에 찻잔 자국이 남아 있다."],[2,8,5,2,"방석 하나가 살짝 따뜻하다."],[11,4,5,2,"낮은 상. 다리를 모으고 앉아야 할 것 같다."],[11,7,5,2,"방석 위에 누군가 접어 둔 종이학이 있다."]] },
-  toilet: { floor:[[1,2,16,9]], exit:[17,8,1,3], spawn:[16,9],
+  toilet: { logo:[5,11], floor:[[1,2,16,9]], exit:[17,8,1,3], spawn:[16,9],
     stations:{ main:[2,2,7,1] },
     props:[[10,2,2,3,"칸이 비어 있다."],[12,2,3,3,"칸이 비어 있다."],[15,2,2,3,"맨 끝 칸. 안에서 '똑똑' 노크 소리가 난다. …못 들은 걸로 하자."]] }
 };
@@ -86,6 +86,7 @@ function buildFloor4(){
   add(s,{kind:"locked", label:"컴퓨터활용실", c:29,r:7,w:8,h:4, door:[32,7]});
   add(s,{kind:"stairC", label:"중앙 계단", c:37,r:7,w:7,h:4, door:[40,7], to:"F3", toPos:[41,6]});
   add(s,{kind:"deco", label:"중원홀", c:38,r:4,w:0,h:0});
+  add(s,{kind:"logo", label:"교표", c:14, r:7});
   return s;
 }
 function buildFloor3(){
@@ -103,6 +104,7 @@ function buildFloor3(){
   add(s,{kind:"room", room:"yewon", c:41,r:0,w:4,h:3, door:[42,2], color:COLOR.class});
   add(s,{kind:"locked", label:"컴퓨터활용실", c:30,r:7,w:8,h:4, door:[33,7]});
   add(s,{kind:"stairC", label:"중앙 계단", c:38,r:7,w:7,h:4, door:[41,7], to:"F4", toPos:[40,6]});
+  add(s,{kind:"logo", label:"교표", c:15, r:7});
   return s;
 }
 
@@ -115,13 +117,14 @@ function buildRoom(id){
   add(s,{kind:"exit", label:"복도로 나가기", c:L.exit[0], r:L.exit[1], w:L.exit[2], h:L.exit[3]});
   for(const [k,rc] of Object.entries(L.stations)) if(R.stations[k]) add(s,{kind:"station", key:k, label:R.stations[k].name, c:rc[0], r:rc[1], w:rc[2], h:rc[3]});
   L.props.forEach(p => add(s,{kind:"prop", c:p[0], r:p[1], w:p[2], h:p[3], say:p[4] || "특별한 건 없다."}));
+  if(L.logo) add(s,{kind:"logo", label:"교표", c:L.logo[0], r:L.logo[1]});
   return s;
 }
 
 /* ------------------------------------------------------------------
    2. 상태
    ------------------------------------------------------------------ */
-const fresh = () => ({ lore:0, quizUsed:0, started:false, t0:0, tEnd:0, scene:"c23", px:null, py:null, dir:"up",
+const fresh = () => ({ lore:0, quizUsed:0, riddle:{}, rtries:{}, logos:{}, started:false, t0:0, tEnd:0, scene:"c23", px:null, py:null, dir:"up",
   solved:{}, cleared:{}, charms:0, used:0, qSelf:0, qHelp:0, wrong:0, escaped:false, refl:"", met:{} });
 let S = load();
 function load(){ if(TEACHER) return fresh(); try{ const v = JSON.parse(localStorage.getItem(KEY)); return v ? Object.assign(fresh(), v) : fresh(); }catch(e){ return fresh(); } }
@@ -135,6 +138,8 @@ function roomOpen(id){
   if(i < 0) return true;                      // 특별실·화장실은 언제든
   return i === 0 || isCleared(CHAIN[i-1]);
 }
+const allStations = id => Object.keys(ROOMS[id].stations).every(k => S.solved[id+"."+k]);
+const riddlePending = id => ROOMS[id].kind === "class" && RIDDLES[id] && !S.riddle[id] && allStations(id) && !isCleared(id);
 const nextRequired = () => CHAIN.find(id => !isCleared(id)) || null;
 const stairDownOpen = () => TEACHER || isCleared("c27");
 const exitOpen = () => TEACHER || isCleared("c21");
@@ -227,7 +232,8 @@ function actText(o){
   if(!o) return "살필 것 없음";
   if(o.kind === "ghost") return "귀신에게 말 걸기";
   if(o.kind === "room") return roomOpen(o.room) ? `${ROOMS[o.room].name} 들어가기` : `${ROOMS[o.room].name} · 잠김`;
-  if(o.kind === "exit") return "복도로 나가기";
+  if(o.kind === "exit") return riddlePending(SC.room) && !TEACHER ? "문 자물쇠 풀기" : "복도로 나가기";
+  if(o.kind === "logo") return "교표 살펴보기";
   if(o.kind === "stairC") return SC.id === "F4" ? "3층으로 내려가기" : "4층으로 올라가기";
   if(o.kind === "stairE") return o.exit ? "동편 계단으로 탈출" : "동편 계단 살피기";
   if(o.kind === "locked") return `${o.label} · 출입 금지`;
@@ -246,7 +252,10 @@ function interact(o){
   }
   if(o.kind === "exit"){
     const R = ROOMS[SC.room];
-    if(R.kind === "class" && !isCleared(SC.room) && !TEACHER) return talk("어딜 가? 이 교실 문제를 다 풀기 전엔 문이 안 열려.");
+    if(R.kind === "class" && !isCleared(SC.room) && !TEACHER){
+      if(riddlePending(SC.room)) return openRiddle(SC.room);
+      return talk("어딜 가? 이 교실 문제를 다 풀기 전엔 문이 안 열려.");
+    }
     const h = hallFor(SC.room);
     return enter(h.floor, [h.o.door[0], h.o.door[1]+1], "down");
   }
@@ -263,6 +272,12 @@ function interact(o){
   if(o.kind === "locked") return talk(`${o.label}은 잠겨 있어. 배치도에서 흰 방은 못 들어가.`, "안내");
   if(o.kind === "station") return openStation(SC.room, o.key);
   if(o.kind === "prop") return talk(o.say || "특별한 건 없다.", "살펴보니");
+  if(o.kind === "logo"){
+    const first = !S.logos[SC.id]; S.logos[SC.id] = true; save(); renderSide();
+    const n = Object.keys(S.logos).length, tot = Object.keys(ROOMS).length + 2;
+    const msg = RIDDLES[SC.id] ? `교표 뒷면에 작은 글씨가 있다. "${RIDDLES[SC.id].clue}"` : (LOGO_SAY[SC.id] || "충주예성여고 교표가 반짝인다.");
+    return talk(first ? `${msg} (찾은 교표 ${n}/${tot})` : msg, "교표");
+  }
 }
 function onEnterRoom(id){
   const R = ROOMS[id];
@@ -406,9 +421,28 @@ function drawMarks(t){
     else { glowRect(x, y, w, h, "#f2d27a", t, 4); beacon(cx, y - 2, "!", "#f2d27a", t, 14); plate(o.label, cx, y + h/2 + 8, 12); }
   }
   const e = SC.objs.find(o => o.kind === "exit");
-  if(e){ const open = ROOMS[SC.room].kind !== "class" || isCleared(SC.room) || TEACHER;
-    glowRect(e.c*T, e.r*T, e.w*T, e.h*T, open ? K.exit : "rgba(239,138,120,.9)", t, 3);
-    plate(open ? "나가는 문" : "잠긴 문", (e.c+e.w/2)*T, (e.r+e.h/2)*T + 5, 11); }
+  if(e){ const open = ROOMS[SC.room].kind !== "class" || isCleared(SC.room) || TEACHER, rid = riddlePending(SC.room);
+    const ex = (e.c+e.w/2)*T, ey = (e.r+e.h/2)*T;
+    if(rid){ glowRect(e.c*T, e.r*T, e.w*T, e.h*T, "#b9c8ff", t, 4); beacon(ex, e.r*T - 4, "?", "#b9c8ff", t, 14); plate("수수께끼 자물쇠", ex, ey + 8, 12); }
+    else { glowRect(e.c*T, e.r*T, e.w*T, e.h*T, open ? K.exit : "rgba(239,138,120,.9)", t, 3); plate(open ? "나가는 문" : "잠긴 문", ex, ey + 5, 11); } }
+}
+/* 교표: 벽에 걸린 둥근 학교 로고. 아직 못 찾은 교표는 반짝임 */
+function drawLogos(t){
+  for(const o of SC.objs){
+    if(o.kind !== "logo") continue;
+    const x = o.c*T + T/2, y = o.r*T + T/2, r = 15;
+    ctx.fillStyle = "#3a2a20"; ctx.beginPath(); ctx.arc(x, y, r+2.5, 0, Math.PI*2); ctx.fill();
+    if(ready("logo")){ ctx.imageSmoothingEnabled = true; ctx.drawImage(IMG.logo, x-r, y-r, r*2, r*2); ctx.imageSmoothingEnabled = false; }
+    else { ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill(); text("高", x, y+5, 13, "#7a1f2b"); }
+    if(!S.logos[SC.id]) POST.push(() => {
+      const k = (Math.sin(t*3)+1)/2;
+      ctx.save(); ctx.globalAlpha = .35 + .5*k; ctx.strokeStyle = "#fff6d0"; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(x, y, r+4, 0, Math.PI*2); ctx.stroke();
+      ctx.fillStyle = "#fff6d0"; const sx = x + r, sy = y - r;
+      ctx.beginPath(); ctx.moveTo(sx, sy-6); ctx.lineTo(sx+1.5, sy-1.5); ctx.lineTo(sx+6, sy); ctx.lineTo(sx+1.5, sy+1.5); ctx.lineTo(sx, sy+6); ctx.lineTo(sx-1.5, sy+1.5); ctx.lineTo(sx-6, sy); ctx.lineTo(sx-1.5, sy-1.5); ctx.fill();
+      ctx.restore();
+    });
+  }
 }
 /* 가까이 간 물건을 밝은 테두리로 감쌈 */
 function drawNearRing(){
@@ -427,6 +461,7 @@ function ghostLine(){
     if(SC.id === "F4" && ["c22","c21"].includes(n)) return GHOST_NEAR.stairs;
     return GHOST_NEAR.hall.replace("{room}", ROOMS[n].name);
   }
+  if(riddlePending(SC.room)) return "이제 문에 걸린 수수께끼만 풀면 돼. 막히면 벽의 교표를 살펴봐.";
   const R = ROOMS[SC.room], left = Object.keys(R.stations).filter(k => !S.solved[SC.room+"."+k]).length;
   return GHOST_NEAR.room.replace("{left}", left);
 }
@@ -552,6 +587,7 @@ function draw(t){
   ctx.save(); ctx.setTransform(2*Z,0,0,2*Z,0,0); ctx.fillStyle = "#07080c"; ctx.fillRect(0,0,vw,vh); ctx.translate(-camX,-camY);
   POST = [];
   if(SC.hall) drawHall(t); else drawRoomBase();
+  drawLogos(t);
   drawPath(); drawPlayer();
   drawFog(t);
   if(!SC.hall) drawMarks(t);
@@ -644,7 +680,7 @@ function renderSide(){
   }).join("") + `<li class="${S.escaped?"done":!nx?"next":"lock"}"><i>${S.escaped?"✓":!nx?"▶":"·"}</i><span>동편 계단 <small>학교 밖으로</small></span><small>3층</small></li>`;
   $("#charms").innerHTML = S.charms ? Array.from({length:S.charms},()=>`<span class="charm" title="부적"></span>`).join("") : `<span class="say" style="font-size:13px">아직 없어요</span>`;
   const sides = Object.keys(ROOMS).filter(k => ROOMS[k].kind !== "class");
-  $("#log").innerHTML = `<span>스스로 푼 문제 ${S.qSelf} · 도움 받은 문제 ${S.qHelp}</span><span>귀신 웃음 ${S.wrong}번 · 부적 사용 ${S.used}장</span><span>둘러본 특별실·화장실 ${sides.filter(isCleared).length}/${sides.length}</span>`;
+  $("#log").innerHTML = `<span>스스로 푼 문제 ${S.qSelf} · 도움 받은 문제 ${S.qHelp}</span><span>귀신 웃음 ${S.wrong}번 · 부적 사용 ${S.used}장</span><span>둘러본 특별실·화장실 ${sides.filter(isCleared).length}/${sides.length}</span><span>찾은 교표 ${Object.keys(S.logos).length}/${Object.keys(ROOMS).length + 2}</span>`;
   renderPlaces();
 }
 function renderPlaces(){
@@ -671,6 +707,7 @@ $("#overlay").addEventListener("click", e => { if(e.target.id==="overlay" && S.s
 function ghostGuide(){
   const n = nextRequired();
   if(!n) return "2-1반까지 다 풀었잖아! 3층 복도 왼쪽 끝 동편 계단으로 가. 문 열어 놨어.";
+  if(!SC.hall && SC.room === n && riddlePending(n)) return `문에 걸린 자물쇠 수수께끼가 남았어. "${RIDDLES[n].clue}" …이건 교표 뒷면에 적힌 말이야.`;
   if(!SC.hall && SC.room === n){
     const left = Object.keys(ROOMS[n].stations).filter(k => !S.solved[n+"."+k]).map(k => ROOMS[n].stations[k].name);
     return `이 교실에서 ${left.join(", ")} 문제가 남았어. 노란 테두리가 깜빡이는 곳을 찾아봐.`;
@@ -771,16 +808,56 @@ function question(roomId, key, i){
     }
   });
 }
+function clearRoom(roomId){
+  const R = ROOMS[roomId];
+  S.cleared[roomId] = true;
+  if(R.kind === "class") return roomId === "c27" ? STORY.floorDown : roomId === "c21" ? "…다 풀었네. 동편 계단 문이 열렸어. 교실을 나가서 복도 끝으로 가." : STORY.roomClear;
+  S.charms++; return `${R.name} 문제를 다 풀었어. 부적 한 장 가져가.`;
+}
+/* 문 자물쇠 수수께끼 */
+const norm = v => String(v).replace(/[\s.,!?~'"“”‘’()\[\]]/g, "");
+function openRiddle(id){
+  const Q = RIDDLES[id], R = ROOMS[id];
+  const dial = Q.type === "dial", digits = dial ? Array(Q.answer.length).fill(0) : null;
+  show(`<span class="eyebrow">${R.name} · 문 자물쇠</span><h3>${esc(Q.title)}</h3>
+    <div class="chalk riddle">${esc(Q.text).replace(/\n/g,"<br>")}</div>
+    ${dial ? `<div class="dials" style="grid-template-columns:repeat(${digits.length},minmax(0,1fr))">${digits.map((d,k)=>`<div class="dial"><span>${esc(Q.labels[k])}</span><button data-d="${k}" data-v="1" aria-label="${esc(Q.labels[k])} 올리기">▲</button><span class="n" id="dn${k}">0</span><button data-d="${k}" data-v="-1" aria-label="${esc(Q.labels[k])} 내리기">▼</button></div>`).join("")}</div>`
+      : `<label class="answer">답 적기<input type="text" id="rin" autocomplete="off" placeholder="예: 두세 글자 낱말"></label>`}
+    <div id="rfb">${TEACHER ? `<p class="hint">교사용 정답: ${dial ? Q.answer : Q.answer.join(", ")}</p>` : ""}</div>
+    <div class="btnrow"><button class="btn hot" id="rgo">자물쇠 열기</button><button class="btn ghost" id="rhint">힌트 보기</button><button class="btn ghost" id="rx">나중에 하기</button></div>`,
+  () => {
+    if(dial) document.querySelectorAll(".dial button").forEach(b => b.onclick = () => { const k = +b.dataset.d; digits[k] = (digits[k] + (+b.dataset.v) + 10) % 10; $("#dn"+k).textContent = digits[k]; });
+    else { $("#rin").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); $("#rgo").click(); } }); setTimeout(() => $("#rin").focus(), 50); }
+    $("#rx").onclick = hide;
+    $("#rhint").onclick = () => { S.rtries[id] = Math.max(S.rtries[id]||0, 2); save(); $("#rfb").innerHTML = `<p class="hint">${esc(Q.hint)}</p>`; };
+    $("#rgo").onclick = () => {
+      const val = dial ? digits.join("") : norm($("#rin").value);
+      const ok = dial ? val === Q.answer : Q.answer.some(a => val === norm(a) || val.replace(/(이야|이다|입니다|야|다)$/,"") === norm(a));
+      if(ok){
+        const helped = (S.rtries[id]||0) >= 2; S.riddle[id] = true; helped ? S.qHelp++ : S.qSelf++;
+        const msg = clearRoom(id); save();
+        $("#rfb").innerHTML = `<div class="fb ok"><span class="tag">철컥! 자물쇠가 열렸어요</span><span>${esc(Q.why)}</span></div>`;
+        document.querySelector("#sheet .btnrow").innerHTML = `<button class="btn hot" id="rdone">문 열고 나가기</button>`;
+        $("#rdone").onclick = () => { hide(); setTimeout(() => talk(msg), 150); };
+        $("#rdone").focus(); return;
+      }
+      if(!dial && !val){ $("#rfb").innerHTML = `<p class="hint">답을 적어 주세요.</p>`; return; }
+      S.rtries[id] = (S.rtries[id]||0) + 1; S.wrong++; flicker = .1; save();
+      let msg = GHOST_WRONG[Math.floor(Math.random()*GHOST_WRONG.length)];
+      if(dial){ const right = [...val].filter((d,k) => d === Q.answer[k]).length; msg += ` (자물쇠 ${val.length}칸 가운데 ${right}칸이 딸깍 맞물렸어.)`; }
+      $("#rfb").innerHTML = `<div class="gline">${esc(msg)}</div>${S.rtries[id] >= 2 ? `<p class="hint">${esc(Q.hint)}</p>` : ""}`;
+    };
+  });
+}
 function stationDone(roomId, key, replay){
   const R = ROOMS[roomId];
   if(!replay){ S.solved[roomId+"."+key] = true; }
   const allDone = Object.keys(R.stations).every(k => S.solved[roomId+"."+k]);
   let msg = "";
   if(!replay && allDone && !isCleared(roomId)){
-    S.cleared[roomId] = true;
-    if(R.kind === "class"){
-      msg = roomId === "c27" ? STORY.floorDown : roomId === "c21" ? "…다 풀었네. 동편 계단 문이 열렸어. 교실을 나가서 복도 끝으로 가." : STORY.roomClear;
-    } else { S.charms++; msg = `${R.name} 문제를 다 풀었어. 부적 한 장 가져가.`; }
+    if(R.kind === "class" && RIDDLES[roomId] && !S.riddle[roomId]){
+      msg = "세 곳 다 풀었네. 그런데 문에 자물쇠가 걸려 있지? 문으로 가서 수수께끼를 풀어 봐. 막히면 벽의 교표를 살펴봐.";
+    } else msg = clearRoom(roomId);
   }
   save(); hide();
   if(msg) setTimeout(() => talk(msg), 200);
@@ -813,6 +890,7 @@ function finish(){
         <dt>도움 받은 문제</dt><dd>${S.qHelp}개</dd>
         <dt>귀신 웃음</dt><dd>${S.wrong}번</dd>
         <dt>부적 사용</dt><dd>${S.used}장</dd>
+        <dt>찾은 교표</dt><dd>${Object.keys(S.logos).length}/${Object.keys(ROOMS).length + 2}</dd>
         <dt>걸린 시간</dt><dd>${mmss((S.tEnd||Date.now())-S.t0)}</dd>
       </dl>
       <label>돌아보기 한 줄 (채점하지 않아요)<textarea id="refl" placeholder="가장 헷갈렸던 문법 개념과 그 까닭">${esc(S.refl)}</textarea></label>
@@ -836,5 +914,5 @@ requestAnimationFrame(loop);
 if(!S.started) intro();
 
 /* 점검용 (자동 테스트) */
-window.__yaja = { S:()=>S, enter, interact, scene:()=>SC, P, unreachable:()=>SC.objs.filter(o=>o.kind!=="deco" && !routeToObj(o)).map(o=>o.label||o.say||o.room||o.kind), solveAll:(id)=>{ Object.keys(ROOMS[id].stations).forEach(k=>S.solved[id+"."+k]=true); S.cleared[id]=true; renderSide(); } };
+window.__yaja = { S:()=>S, enter, interact, scene:()=>SC, P, unreachable:()=>SC.objs.filter(o=>o.kind!=="deco" && !routeToObj(o)).map(o=>o.label||o.say||o.room||o.kind), solveAll:(id)=>{ Object.keys(ROOMS[id].stations).forEach(k=>S.solved[id+"."+k]=true); S.riddle[id]=true; S.cleared[id]=true; renderSide(); } };
 })();
