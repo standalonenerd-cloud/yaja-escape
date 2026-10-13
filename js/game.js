@@ -6,7 +6,7 @@
 const T = 32, VW = 640, VH = 384;
 const TOUCH = matchMedia("(pointer: coarse)").matches;
 const TEACHER = location.hash.replace("#","") === "teacher";
-const KEY = "yaja-escape-v1";
+const KEY = "yaja-escape-v2";
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const shuffle = a => { a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
@@ -22,16 +22,30 @@ const ready = k => IMG[k] && IMG[k].complete && IMG[k].naturalWidth > 0;
 const ROOM_IMG = { c21:"class", c22:"class", c23:"class", c24:"class", c25:"class", c26:"class", c27:"class",
   staff:"staff", art:"art", nurse:"nurse", counsel:"counsel", safety:"safety", yewon:"yewon", toilet3:"toilet", toilet4:"toilet" };
 
+/* 교실 기물 [열,행,너비,높이,살폈을 때 문구] — 문제가 놓이지 않은 기물은 그냥 살펴볼 수 있음 */
+const CLASS_FIXTURES = {
+  board:   [5,1,8,1, "칠판 구석에 '야자 22:00까지'라고 적혀 있다."],
+  desk:    [8,2,2,2, "교탁 위에 분필 상자가 놓여 있다."],
+  locker:  [1,10,7,1,"사물함 문 하나가 덜 닫혀 있다."],
+  notice:  [13,1,3,1,"게시판: '야간 자율 학습 22:00 종료. 마지막에 나가는 사람은 소등.'"],
+  window:  [1,5,1,2, "창밖은 깜깜하다. 운동장 가로등만 깜빡인다."],
+  clock:   [16,1,1,1,"시계가 밤 10시 정각에 멈춰 있다."],
+  cleaner: [9,10,2,1,"청소도구함. 빗자루와 대걸레가 들어 있다."],
+  charger: [16,6,1,2,"핸드폰 충전함. 내 휴대폰은 배터리가 1%다."],
+  flag:    [3,1,2,1, "교실 앞 태극기. 바르게 걸려 있다."]
+};
+
+const FIX_NAME = { board:"칠판", desk:"교탁", locker:"사물함", notice:"게시판", window:"창문", clock:"시계", cleaner:"청소도구함", charger:"핸드폰 충전함", flag:"태극기" };
+
 /* 방 그림(18×12칸)에 맞춘 배치
    floor: 걸을 수 있는 칸 [열,행,너비,높이] · exit: 문 · spawn: 들어왔을 때 서는 칸
    stations: 문제를 푸는 물건 · props: 살펴볼 수 있는 물건 [열,행,너비,높이,살폈을 때 문구] */
 const DESK = "누군가 두고 간 문법 노트. 형광펜 자국이 빽빽하다.";
 const LAYOUT = {
   class: { logo:[17,4], floor:[[2,2,15,8],[8,10,5,1]], exit:[14,10,1,1], spawn:[14,9], ghost:[15,3],
-    stations:{ board:[5,1,8,1], desk:[8,2,2,2], locker:[1,10,7,1] },
+    stations:{},
     props:[[3,4,2,1,DESK],[6,4,2,1,DESK],[10,4,2,1,DESK],[13,4,2,1,DESK],[3,6,2,1,DESK],[6,6,2,1,DESK],[10,6,2,1,DESK],
-      [13,6,2,1,"책상에 연필로 쓴 낙서: '문법 귀신 진짜 있음. 2-1반까지 버텨.'"],[3,8,2,1,DESK],[6,8,2,1,DESK],[10,8,2,1,DESK],[13,8,2,1,DESK],
-      [13,1,3,1,"게시판: '야간 자율 학습 22:00 종료. 마지막에 나가는 사람은 소등.'"]] },
+      [13,6,2,1,"책상에 연필로 쓴 낙서: '문법 귀신 진짜 있음. 2-1반까지 버텨.'"],[3,8,2,1,DESK],[6,8,2,1,DESK],[10,8,2,1,DESK],[13,8,2,1,DESK]] },
   staff: { logo:[0,6], floor:[[1,1,16,9],[1,10,11,1]], exit:[12,10,5,1], spawn:[14,9],
     stations:{ main:[11,4,3,3] },
     props:[[2,2,6,3,"선생님들 책상 위에 수행평가 채점지가 쌓여 있다."],[2,7,6,3,"모니터가 꺼져 있다. 화면에 네 얼굴이 비친다."],
@@ -78,7 +92,7 @@ function add(s, o){ if(o.kind !== "deco"){ o.w = o.w||1; o.h = o.h||1; } s.objs.
 function buildFloor4(){
   const s = newScene("F4","본관 4층",45,12,{ hall:true });
   carve(s,4,5,30,2); carve(s,34,3,10,4);
-  add(s,{kind:"stairE", label:"동편 계단", c:1,r:2,w:3,h:8, door:[3,5]});
+  add(s,{kind:"stairE", label:"동편 계단", c:1,r:2,w:3,h:8, door:[3,5], to:"F3", toPos:[4,5]});
   [["c23",4],["c24",9],["c25",14],["c26",19],["c27",24]].forEach(([id,c]) => add(s,{kind:"room", room:id, c, r:1, w:5, h:4, door:[c+2,4], color:COLOR.class}));
   add(s,{kind:"room", room:"staff", c:29,r:1,w:5,h:4, door:[31,4], color:COLOR.class});
   add(s,{kind:"room", room:"toilet4", c:34,r:0,w:4,h:3, door:[35,2], color:COLOR.toilet});
@@ -116,6 +130,11 @@ function buildRoom(id){
   L.floor.forEach(f => carve(s, ...f));
   add(s,{kind:"exit", label:"복도로 나가기", c:L.exit[0], r:L.exit[1], w:L.exit[2], h:L.exit[3]});
   for(const [k,rc] of Object.entries(L.stations)) if(R.stations[k]) add(s,{kind:"station", key:k, label:R.stations[k].name, c:rc[0], r:rc[1], w:rc[2], h:rc[3]});
+  if(key === "class") for(const [fx, f] of Object.entries(CLASS_FIXTURES)){
+    const k = Object.keys(R.stations).find(k => (R.stations[k].at || k) === fx);
+    if(k) add(s,{kind:"station", key:k, fx, label:R.stations[k].name, c:f[0], r:f[1], w:f[2], h:f[3]});
+    else add(s,{kind:"prop", fx, label:FIX_NAME[fx], say:f[4], c:f[0], r:f[1], w:f[2], h:f[3]});
+  }
   L.props.forEach(p => add(s,{kind:"prop", c:p[0], r:p[1], w:p[2], h:p[3], say:p[4] || "특별한 건 없다."}));
   if(L.logo) add(s,{kind:"logo", label:"교표", c:L.logo[0], r:L.logo[1]});
   return s;
@@ -124,7 +143,7 @@ function buildRoom(id){
 /* ------------------------------------------------------------------
    2. 상태
    ------------------------------------------------------------------ */
-const fresh = () => ({ lore:0, quizUsed:0, riddle:{}, rtries:{}, logos:{}, started:false, t0:0, tEnd:0, scene:"c23", px:null, py:null, dir:"up",
+const fresh = () => ({ lore:0, quizUsed:0, riddle:{}, rtries:{}, logos:{}, started:false, t0:0, tEnd:0, scene:"c27", px:null, py:null, dir:"up",
   solved:{}, cleared:{}, charms:0, used:0, qSelf:0, qHelp:0, wrong:0, escaped:false, refl:"", met:{} });
 let S = load();
 function load(){ if(TEACHER) return fresh(); try{ const v = JSON.parse(localStorage.getItem(KEY)); return v ? Object.assign(fresh(), v) : fresh(); }catch(e){ return fresh(); } }
@@ -141,7 +160,7 @@ function roomOpen(id){
 const allStations = id => Object.keys(ROOMS[id].stations).every(k => S.solved[id+"."+k]);
 const riddlePending = id => ROOMS[id].kind === "class" && RIDDLES[id] && !S.riddle[id] && allStations(id) && !isCleared(id);
 const nextRequired = () => CHAIN.find(id => !isCleared(id)) || null;
-const stairDownOpen = () => TEACHER || isCleared("c27");
+const stairDownOpen = () => TEACHER || isCleared("c23");
 const exitOpen = () => TEACHER || isCleared("c21");
 
 /* ------------------------------------------------------------------
@@ -235,10 +254,10 @@ function actText(o){
   if(o.kind === "exit") return riddlePending(SC.room) && !TEACHER ? "문 자물쇠 풀기" : "복도로 나가기";
   if(o.kind === "logo") return "교표 살펴보기";
   if(o.kind === "stairC") return SC.id === "F4" ? "3층으로 내려가기" : "4층으로 올라가기";
-  if(o.kind === "stairE") return o.exit ? "동편 계단으로 탈출" : "동편 계단 살피기";
+  if(o.kind === "stairE") return o.exit ? "동편 계단으로 탈출" : (stairDownOpen() ? "동편 계단으로 3층 내려가기" : "동편 계단 · 잠김");
   if(o.kind === "locked") return `${o.label} · 출입 금지`;
   if(o.kind === "station") return `${o.label} 살피기`;
-  return "살펴보기";
+  return o.label ? `${o.label} 살펴보기` : "살펴보기";
 }
 function interact(o){
   o = o || near; if(!o) return;
@@ -260,12 +279,16 @@ function interact(o){
     return enter(h.floor, [h.o.door[0], h.o.door[1]+1], "down");
   }
   if(o.kind === "stairC"){
-    if(SC.id === "F4" && !stairDownOpen()) return talk("중앙 계단은 2-7반까지 다 풀어야 열려.");
+    if(SC.id === "F4" && !stairDownOpen()) return talk("계단은 2-3반까지 다 풀어야 열려.");
     if(SC.id === "F4" && !S.met.floor3){ S.met.floor3 = true; setTimeout(() => talk(STORY.lastRoom), 400); }
     return enter(o.to, o.toPos, "up");
   }
   if(o.kind === "stairE"){
-    if(!o.exit) return talk("4층 동편 계단은 셔터가 내려와 있어. 다른 길로 가야 해.");
+    if(!o.exit){
+      if(!stairDownOpen()) return talk("동편 계단은 셔터가 내려와 있어. 2-3반까지 다 풀면 열어 줄게.");
+      if(!S.met.floor3){ S.met.floor3 = true; setTimeout(() => talk(STORY.lastRoom), 400); }
+      return enter(o.to, o.toPos, "down");
+    }
     if(!exitOpen()) return talk("여기가 학교 밖으로 나가는 길이야. 하지만 2-1반을 풀기 전엔 안 열어 줘. 킥킥.");
     return finish();
   }
@@ -364,14 +387,14 @@ function drawHall(t){
         rect(x,y,w,h,"#2c3040");
         for(let i=0;i<(o.kind==="stairE"?o.h:o.w);i++){ if(o.kind==="stairE") rect(x+3, y+i*T+4, w-6, 4, "#3d4256"); else rect(x+i*T+4, y+3, 4, h-6, "#3d4256"); }
       }
-      const lab = o.kind === "stairE" ? (o.exit ? "동편 계단 (3F→2F)" : "동편 계단") : `중앙 계단 (${SC.id==="F4"?"4F→3F":"3F→4F"})`;
+      const lab = o.kind === "stairE" ? (o.exit ? "동편 계단 (3F→2F)" : "동편 계단 (4F→3F)") : `중앙 계단 (${SC.id==="F4"?"4F→3F":"3F→4F"})`;
       if(o.kind === "stairE"){ ctx.save(); ctx.translate(x+w/2, y+h/2); ctx.rotate(-Math.PI/2); plate(lab,0,0,11); ctx.restore(); }
       else plate(lab, x+w/2, y+h-14, 11);
-      const isExit = o.kind==="stairE" ? o.exit : true;
-      const lit = o.kind==="stairE" ? (o.exit && exitOpen()) : (SC.id==="F3" || stairDownOpen());
+      const isExit = true;
+      const lit = o.kind==="stairE" ? (o.exit ? exitOpen() : stairDownOpen()) : (SC.id==="F3" || stairDownOpen());
       if(isExit){ rect(o.door[0]*T+4, o.door[1]*T+(o.kind==="stairE"?2:18), 24, 10, lit ? K.exit : "#2b4a36"); text("EXIT", o.door[0]*T+16, o.door[1]*T+(o.kind==="stairE"?10:26), 7, lit?"#08140d":"#4e7a5c"); }
-      if(o.kind==="stairE" && !o.exit){ ctx.fillStyle = "rgba(120,124,136,.85)"; for(let i=0;i<o.h;i++) ctx.fillRect(x+w-10, y+i*T+2, 8, T-4); }
-      if(lit && ((o.kind==="stairC" && SC.id==="F4" && nxt==="c22") || (o.kind==="stairE" && o.exit && !nxt))) POST.push(() => { glowRect(x,y,w,h,K.exit,t,4); beacon(o.door[0]*T+T/2, o.door[1]*T + (o.kind==="stairE"?-2:-6), "!", K.exit, t, 13); });
+      if(o.kind==="stairE" && !o.exit && !stairDownOpen()){ ctx.fillStyle = "rgba(120,124,136,.85)"; for(let i=0;i<o.h;i++) ctx.fillRect(x+w-10, y+i*T+2, 8, T-4); }
+      if(lit && ((o.kind==="stairE" && !o.exit && nxt==="c22") || (o.kind==="stairE" && o.exit && !nxt))) POST.push(() => { glowRect(x,y,w,h,K.exit,t,4); beacon(o.door[0]*T+T/2, o.door[1]*T + (o.kind==="stairE"?-2:-6), "!", K.exit, t, 13); });
     }
   }
   text(s.name, 5*T, 0.6*T, 12, "rgba(233,230,220,.6)", "left");
@@ -408,9 +431,48 @@ function glowRect(x,y,w,h,color,t,width=3){
 
 function drawRoomBase(){
   const s = SC;
-  if(ready(s.img)){ ctx.drawImage(IMG[s.img], 0, 0, s.cols*T, s.rows*T); return; }
+  if(ready(s.img)){ ctx.drawImage(IMG[s.img], 0, 0, s.cols*T, s.rows*T); drawFixtures(); return; }
   for(let r=0;r<s.rows;r++) for(let c=0;c<s.cols;c++) rect(c*T, r*T, T, T, s.grid[r][c]==="." ? ((r+c)%2 ? "#6e5440" : "#674e3b") : K.wall);
   for(const o of s.objs) if(o.kind !== "exit") rect(o.c*T+2, o.r*T+2, o.w*T-4, o.h*T-4, "#4e3826");
+}
+/* 그림에 없는 교실 기물을 직접 그림: 태극기 · 시계 · 청소도구함 · 핸드폰 충전함 */
+function outline(w=1.6){ ctx.strokeStyle = "#1d1a1a"; ctx.lineWidth = w; }
+function drawFixtures(){
+  for(const o of SC.objs){
+    const x = o.c*T, y = o.r*T, w = o.w*T, h = o.h*T;
+    if(o.fx === "flag"){
+      const fw = 40, fh = 27, fx = x + (w-fw)/2, fy = y + 2;
+      rect(fx-3, fy-2, 2, fh+6, "#8a6a3c");
+      ctx.fillStyle = "#fbfbf7"; ctx.fillRect(fx, fy, fw, fh); outline(1.4); ctx.strokeRect(fx, fy, fw, fh);
+      const cx = fx + fw/2, cy = fy + fh/2, r = 6.5;
+      ctx.fillStyle = "#cd2e3a"; ctx.beginPath(); ctx.arc(cx, cy, r, Math.PI, 0); ctx.fill();
+      ctx.fillStyle = "#0047a0"; ctx.beginPath(); ctx.arc(cx, cy, r, 0, Math.PI); ctx.fill();
+      ctx.fillStyle = "#cd2e3a"; ctx.beginPath(); ctx.arc(cx - r/2, cy, r/2, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#0047a0"; ctx.beginPath(); ctx.arc(cx + r/2, cy, r/2, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = "#1d1a1a";
+      for(const [dx,dy] of [[-12,-7],[12,-7],[-12,7],[12,7]]) for(let i=0;i<3;i++) ctx.fillRect(cx + dx - 3, cy + dy - 3 + i*2.2, 6, 1.4);
+    } else if(o.fx === "clock"){
+      const cx = x + w/2, cy = y + h/2 + 2;
+      ctx.fillStyle = "#fbfbf7"; ctx.beginPath(); ctx.arc(cx, cy, 11, 0, Math.PI*2); ctx.fill(); outline(2.4); ctx.stroke();
+      ctx.fillStyle = "#1d1a1a"; for(let i=0;i<12;i++){ const a = i*Math.PI/6; ctx.fillRect(cx + Math.cos(a)*8.5 - .7, cy + Math.sin(a)*8.5 - .7, 1.4, 1.4); }
+      ctx.lineWidth = 1.8; ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(cx - 4, cy - 2.3); ctx.moveTo(cx, cy); ctx.lineTo(cx, cy - 8); ctx.stroke();
+    } else if(o.fx === "cleaner"){
+      const bx = x + 2, by = y - 6, bw = w - 4, bh = h + 4;
+      ctx.fillStyle = "#7f93a8"; ctx.fillRect(bx, by, bw, bh); outline(1.8); ctx.strokeRect(bx, by, bw, bh);
+      ctx.fillStyle = "#93a8bd"; ctx.fillRect(bx+3, by+3, bw/2-4, bh-6); ctx.fillRect(bx+bw/2+1, by+3, bw/2-4, bh-6);
+      ctx.beginPath(); ctx.moveTo(bx+bw/2, by+2); ctx.lineTo(bx+bw/2, by+bh-2); ctx.stroke();
+      rect(bx+bw/2-5, by+bh/2-3, 2, 6, "#e9e6dc"); rect(bx+bw/2+3, by+bh/2-3, 2, 6, "#e9e6dc");
+      ctx.strokeStyle = "#a4733f"; ctx.lineWidth = 2.5; ctx.beginPath(); ctx.moveTo(bx+bw-8, by+2); ctx.lineTo(bx+bw+2, by-12); ctx.stroke();
+      ctx.fillStyle = "#d9c38a"; ctx.beginPath(); ctx.ellipse(bx+bw+4, by-15, 5, 3, -0.6, 0, Math.PI*2); ctx.fill();
+    } else if(o.fx === "charger"){
+      const bx = x + 3, by = y + 2, bw = w - 6, bh = h - 4;
+      ctx.fillStyle = "#3b4150"; ctx.fillRect(bx, by, bw, bh); outline(1.8); ctx.strokeRect(bx, by, bw, bh);
+      const cols = ["#d9534f","#4a7ac9","#f2d27a","#5aa36b","#9d6fb5","#e9e6dc"];
+      for(let i=0;i<6;i++){ const py = by + 4 + i*(bh-8)/6;
+        ctx.fillStyle = cols[i]; ctx.fillRect(bx+4, py, bw-12, (bh-8)/6 - 2);
+        ctx.fillStyle = i%3===0 ? "#f2d27a" : "#4fd18b"; ctx.fillRect(bx+bw-6, py+2, 3, 3); }
+    }
+  }
 }
 function drawMarks(t){
   for(const o of SC.objs){
@@ -518,7 +580,7 @@ function ghostPos(){
     if(!n){ const st = SC.objs.find(o => o.kind==="stairE"); return st ? [(st.door[0]+2)*T, (st.door[1]+1)*T+10] : null; }
     const o = SC.objs.find(o => o.room === n);
     if(o) return [o.door[0]*T+T/2+30, (o.door[1]+1)*T+18];
-    if(SC.id==="F4"){ const st = SC.objs.find(o => o.kind==="stairC"); return [st.door[0]*T-20, (st.door[1]-1)*T+20]; }
+    if(SC.id==="F4"){ const st = SC.objs.find(o => o.kind==="stairE"); return [(st.door[0]+2)*T, (st.door[1]+1)*T+10]; }
     return null;
   }
   if(ROOMS[SC.room].kind==="class" && !isCleared(SC.room) && SC.L.ghost) return [SC.L.ghost[0]*T+T/2, SC.L.ghost[1]*T+T];
@@ -571,7 +633,7 @@ function drawFog(t){
   hole(px, py, 12, 78);
   hole(px+dx*76, py+dy*64, 24, 130, .95);
   for(const o of SC.objs){
-    if(o.kind==="stairC" || (o.kind==="stairE" && o.exit)) hole(o.door[0]*T+T/2-camX, o.door[1]*T+T/2-camY, 4, 46, .7);
+    if(o.kind==="stairC" || o.kind==="stairE") hole(o.door[0]*T+T/2-camX, o.door[1]*T+T/2-camY, 4, 46, .7);
     if(o.kind==="station" || o.kind==="exit" || (o.kind==="room" && o.room===nextRequired())){ const dc = o.door||[o.c+o.w/2-.5, o.r+o.h/2]; hole(dc[0]*T+T/2-camX, dc[1]*T-camY, 4, 52, .62); }
   }
   const g = ghostPos(); if(g) hole(g[0]-camX, g[1]-24-camY, 4, 50, .85);
@@ -685,12 +747,12 @@ function renderSide(){
 }
 function renderPlaces(){
   if(!SC) return;
-  const list = SC.objs.filter(o => ["room","station","exit","stairC","stairE"].includes(o.kind) && !(o.kind==="stairE" && !o.exit));
+  const list = SC.objs.filter(o => ["room","station","exit","stairC","stairE"].includes(o.kind));
   $("#places").innerHTML = list.map((o,i) => {
     let s = "";
     if(o.kind==="room") s = isCleared(o.room) ? "done" : !roomOpen(o.room) ? "lock" : o.room===nextRequired() ? "next" : "";
     if(o.kind==="station") s = S.solved[SC.room+"."+o.key] ? "done" : "next";
-    const name = o.kind==="room" ? ROOMS[o.room].name : o.kind==="stairC" ? o.label : o.kind==="stairE" ? "동편 계단(탈출)" : o.label;
+    const name = o.kind==="room" ? ROOMS[o.room].name : o.kind==="stairC" ? o.label : o.kind==="stairE" ? (o.exit ? "동편 계단(탈출)" : "동편 계단(3층으로)") : o.label;
     return `<button data-i="${i}" data-s="${s}">${name}${s==="done"?" ✓":s==="lock"?" (잠김)":""}</button>`;
   }).join("");
   $("#places").querySelectorAll("button").forEach(b => b.onclick = () => { const o = list[+b.dataset.i]; if(TEACHER){ teleportTo(o); interact(o); } else walkTo(o, true); });
@@ -713,7 +775,7 @@ function ghostGuide(){
     return `이 교실에서 ${left.join(", ")} 문제가 남았어. 노란 테두리가 깜빡이는 곳을 찾아봐.`;
   }
   const fl = ["c22","c21"].includes(n) ? "3층" : "4층";
-  const where = (SC.id === "F4" && fl === "3층") ? " 중앙 계단으로 내려가면 돼." : "";
+  const where = (SC.id === "F4" && fl === "3층") ? " 복도 왼쪽 끝 동편 계단으로 내려가면 돼." : "";
   return `다음은 ${fl} ${ROOMS[n].name}(${ROOMS[n].unit})야.${where} 문 위에 ! 표시가 뜬 교실로 들어와.`;
 }
 function openGhost(){
@@ -811,7 +873,7 @@ function question(roomId, key, i){
 function clearRoom(roomId){
   const R = ROOMS[roomId];
   S.cleared[roomId] = true;
-  if(R.kind === "class") return roomId === "c27" ? STORY.floorDown : roomId === "c21" ? "…다 풀었네. 동편 계단 문이 열렸어. 교실을 나가서 복도 끝으로 가." : STORY.roomClear;
+  if(R.kind === "class") return roomId === "c23" ? STORY.floorDown : roomId === "c21" ? "…다 풀었네. 동편 계단 문이 열렸어. 교실을 나가서 복도 끝으로 가." : STORY.roomClear;
   S.charms++; return `${R.name} 문제를 다 풀었어. 부적 한 장 가져가.`;
 }
 /* 문 자물쇠 수수께끼 */
@@ -1005,7 +1067,7 @@ function intro(){
     <p class="say">방향키나 WASD로 움직이고, E로 살펴요. 휴대폰에서는 화면 방향키를 쓰거나 가고 싶은 곳을 누르세요. 노란 <b>!</b>는 아직 풀지 않은 곳, 문 위에 부적이 뜬 곳은 들러 볼 수 있는 특별실이에요.</p>
     <p class="say" style="font-size:14px">틀려도 실패하지 않아요. 힌트와 부적을 쓰면 끝까지 갈 수 있어요.</p>
     <div class="btnrow"><button class="btn hot" id="go">교실 둘러보기</button></div>`,
-    () => $("#go").onclick = () => { S.started = true; S.t0 = Date.now(); S.met.c23 = true; save(); hide(); setTimeout(() => talk(STORY.ghostIntro), 300); });
+    () => $("#go").onclick = () => { S.started = true; S.t0 = Date.now(); S.met.c27 = true; save(); hide(); setTimeout(() => talk(STORY.ghostIntro), 300); });
 }
 function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`; }
 function finish(){
@@ -1033,13 +1095,13 @@ function finish(){
 }
 $("#resetBtn").onclick = () => show(`<h3>처음부터 다시 할까요?</h3><p class="say">이 기기에 저장된 진행 기록이 모두 지워져요.</p>
   <div class="btnrow"><button class="btn hot" id="yes">기록 지우고 다시 시작</button><button class="btn ghost" id="no">취소</button></div>`,
-  () => { $("#yes").onclick = () => { try{ localStorage.removeItem(KEY); }catch(e){} S = fresh(); enter("c23",null,"up"); intro(); }; $("#no").onclick = hide; });
+  () => { $("#yes").onclick = () => { try{ localStorage.removeItem(KEY); }catch(e){} S = fresh(); enter("c27",null,"up"); intro(); }; $("#no").onclick = hide; });
 
 setInterval(() => { if(S.started) $("#stClock").textContent = mmss((S.escaped?S.tEnd:Date.now())-S.t0); if(S.started && $("#overlay").hidden) save(); }, 1000);
 setInterval(() => { if(Math.random() < .25 && SC && SC.hall) flicker = .08; }, 6000);
 
 /* 시작 */
-enter(S.scene || "c23", null, S.dir);
+enter(S.scene || "c27", null, S.dir);
 if(S.px != null && !solidAt(Math.floor(S.px/T), Math.floor((S.py-5)/T))){ P.x = S.px; P.y = S.py; } else if(SC.hall){ const r = SC.objs.find(o=>o.room===nextRequired()); if(r){ P.x=r.door[0]*T+T/2; P.y=(r.door[1]+1)*T+T-4; } }
 updateZoom();
 requestAnimationFrame(loop);
