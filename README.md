@@ -23,3 +23,14 @@
 
 - 진행 기록은 학생 기기의 브라우저에만 저장됩니다. 같은 기기, 같은 브라우저로 이어서 해야 합니다.
 - 서버, 계정, 외부 전송이 없습니다.
+
+## 그림 바꾸기
+
+그림은 `assets` 폴더에 있습니다. 같은 이름으로 덮어쓰면 게임에 바로 반영됩니다.
+
+- 캐릭터: `char_player_down/up/left/right.png`, `char_ghost.png` (투명 배경)
+- 방: `room_class.jpg` 등 8장 (1152×768). 방 그림을 바꾸면 `js/game.js`의 `LAYOUT`에서 걸을 수 있는 칸과 물건 위치를 다시 맞춰야 합니다.
+- 복도: `tile_hall_floor.png`, `tile_hall_wall.png`, `obj_door.png`, `obj_door_locked.png`, `obj_stairs.jpg`
+- 기타: `title.jpg`(시작 화면), `obj_charm.png`(부적)
+
+그림을 불러오지 못하면 게임이 도형으로 대신 그립니다.
