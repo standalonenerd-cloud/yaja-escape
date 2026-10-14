@@ -44,8 +44,7 @@ const DESK = "누군가 두고 간 문법 노트. 형광펜 자국이 빽빽하�
 const LAYOUT = {
   class: { logo:[17,4], floor:[[2,2,15,8],[8,10,5,1]], exit:[14,10,1,1], spawn:[14,9], ghost:[15,3],
     stations:{},
-    props:[[3,4,2,1,DESK],[6,4,2,1,DESK],[10,4,2,1,DESK],[13,4,2,1,DESK],[3,6,2,1,DESK],[6,6,2,1,DESK],[10,6,2,1,DESK],
-      [13,6,2,1,"책상에 연필로 쓴 낙서: '문법 귀신 진짜 있음. 2-1반까지 버텨.'"],[3,8,2,1,DESK],[6,8,2,1,DESK],[10,8,2,1,DESK],[13,8,2,1,DESK]] },
+    props:[] },
   staff: { logo:[0,6], floor:[[1,1,16,9],[1,10,11,1]], exit:[12,10,5,1], spawn:[14,9],
     stations:{ main:[11,4,3,3] },
     props:[[2,2,6,3,"선생님들 책상 위에 수행평가 채점지가 쌓여 있다."],[2,7,6,3,"모니터가 꺼져 있다. 화면에 네 얼굴이 비친다."],
@@ -130,6 +129,7 @@ function buildRoom(id){
   L.floor.forEach(f => carve(s, ...f));
   add(s,{kind:"exit", label:"복도로 나가기", c:L.exit[0], r:L.exit[1], w:L.exit[2], h:L.exit[3]});
   for(const [k,rc] of Object.entries(L.stations)) if(R.stations[k]) add(s,{kind:"station", key:k, label:R.stations[k].name, c:rc[0], r:rc[1], w:rc[2], h:rc[3]});
+  if(key === "class") [[3,4],[6,4],[10,4],[13,4],[3,6],[6,6],[10,6],[13,6],[3,8],[6,8],[10,8],[13,8]].forEach(([c,r], j) => add(s,{kind:"desk", j, label:"책상", c, r, w:2, h:1}));
   if(key === "class") for(const [fx, f] of Object.entries(CLASS_FIXTURES)){
     const k = Object.keys(R.stations).find(k => (R.stations[k].at || k) === fx);
     if(k) add(s,{kind:"station", key:k, fx, label:R.stations[k].name, c:f[0], r:f[1], w:f[2], h:f[3]});
@@ -144,7 +144,7 @@ function buildRoom(id){
    2. 상태
    ------------------------------------------------------------------ */
 const fresh = () => ({ lore:0, quizUsed:0, riddle:{}, rtries:{}, logos:{}, started:false, t0:0, tEnd:0, scene:"c27", px:null, py:null, dir:"up",
-  solved:{}, cleared:{}, charms:0, used:0, qSelf:0, qHelp:0, wrong:0, escaped:false, refl:"", met:{} });
+  solved:{}, cleared:{}, charms:1, used:0, hidden:{}, qSelf:0, qHelp:0, wrong:0, escaped:false, refl:"", met:{} });
 let S = load();
 function load(){ if(TEACHER) return fresh(); try{ const v = JSON.parse(localStorage.getItem(KEY)); return v ? Object.assign(fresh(), v) : fresh(); }catch(e){ return fresh(); } }
 function save(){ if(TEACHER) return; S.px = P.x; S.py = P.y; S.dir = P.dir; try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
@@ -253,6 +253,7 @@ function actText(o){
   if(o.kind === "room") return roomOpen(o.room) ? `${ROOMS[o.room].name} 들어가기` : `${ROOMS[o.room].name} · 잠김`;
   if(o.kind === "exit") return riddlePending(SC.room) && !TEACHER ? "문 자물쇠 풀기" : "복도로 나가기";
   if(o.kind === "logo") return "교표 살펴보기";
+  if(o.kind === "desk") return "책상 살펴보기";
   if(o.kind === "stairC") return SC.id === "F4" ? "3층으로 내려가기" : "4층으로 올라가기";
   if(o.kind === "stairE") return o.exit ? "동편 계단으로 탈출" : (stairDownOpen() ? "동편 계단으로 3층 내려가기" : "동편 계단 · 잠김");
   if(o.kind === "locked") return `${o.label} · 출입 금지`;
@@ -295,6 +296,7 @@ function interact(o){
   if(o.kind === "locked") return talk(`${o.label}은 잠겨 있어. 배치도에서 흰 방은 못 들어가.`, "안내");
   if(o.kind === "station") return openStation(SC.room, o.key);
   if(o.kind === "prop") return talk(o.say || "특별한 건 없다.", "살펴보니");
+  if(o.kind === "desk") return openDesk(o.j);
   if(o.kind === "logo"){
     const first = !S.logos[SC.id]; S.logos[SC.id] = true; save(); renderSide();
     const n = Object.keys(S.logos).length, tot = Object.keys(ROOMS).length + 2;
@@ -734,6 +736,7 @@ function renderSide(){
   const n = CHAIN.filter(isCleared).length, nx = nextRequired();
   $("#stRooms").textContent = `${n}/${CHAIN.length}`;
   $("#stCharm").textContent = S.charms;
+  if($("#hud")) $("#hud").innerHTML = `<img src="assets/obj_charm.png" alt="">×${S.charms}`;
   $("#teacherBadge").hidden = !TEACHER;
   $("#route").innerHTML = CHAIN.map((id,i) => {
     const cls = isCleared(id) ? "done" : id===nx ? "next" : "lock";
@@ -833,6 +836,62 @@ function openStation(roomId, key){
 }
 function dots(i,n){ return `<div class="dots">${Array.from({length:n},(_,k)=>`<i class="${k<=i?"on":""}"></i>`).join("")}</div>`; }
 
+/* ---------- 부적: 힌트를 보는 아이템 ---------- */
+const NO_CHARM = "부적이 없어요. 교실 책상을 살펴 숨은 OX 게임에서 얻을 수 있어요. (세 번 틀리면 귀신이 힌트를 흘려 주기도 해요)";
+function useCharm(replay){ if(replay || TEACHER) return "free"; if(S.charms <= 0) return null; S.charms--; S.used++; save(); renderSide(); return "used"; }
+const charmNote = r => r === "used" ? ` (부적 1장 사용 · 남은 부적 ${S.charms}장)` : "";
+function charmHint(replay, box, hint, onUse){
+  const r = useCharm(replay);
+  if(!r){ $(box).innerHTML = `<p class="hint">${NO_CHARM}</p>`; return; }
+  onUse && onUse();
+  $(box).innerHTML = `<p class="hint">부적이 타오르며 글씨가 떠올라요. ${esc(hint)}<span class="tag">${charmNote(r)}</span></p>`;
+  const b = $("#hintB") || $("#rhint"); if(b){ b.disabled = true; b.textContent = "힌트를 봤어요"; }
+}
+
+/* ---------- 교실 책상: 책상마다 다른 문구, 두 곳엔 숨은 OX 게임 ---------- */
+function seeded(str){ let h = 1779033703 ^ str.length; for(const ch of str){ h = Math.imul(h ^ ch.charCodeAt(0), 3432918353); h = h << 13 | h >>> 19; }
+  return () => { h = Math.imul(h ^ h >>> 16, 2246822507); h = Math.imul(h ^ h >>> 13, 3266489909); h ^= h >>> 16; return (h >>> 0) / 4294967296; }; }
+const DESK_MSGS = (() => { const out = {};
+  CHAIN.forEach((rid, i) => {
+    const list = []; ["study","food","doodle","chara"].forEach(c => { for(let k=0;k<3;k++) list.push(DESK_TEXT[c][(i*3+k) % DESK_TEXT[c].length]); });
+    const rnd = seeded(rid); for(let a=list.length-1;a>0;a--){ const b = Math.floor(rnd()*(a+1)); [list[a],list[b]] = [list[b],list[a]]; }
+    const hidden = new Set(); while(hidden.size < 2) hidden.add(Math.floor(rnd()*list.length));
+    out[rid] = { list, hidden };
+  }); return out; })();
+function openDesk(j){
+  const rid = SC.room, D = DESK_MSGS[rid], msg = D.list[j], key = rid + "." + j;
+  if(!D.hidden.has(j)) return talk(msg, "책상");
+  if(S.hidden[key]) return talk(msg + " 서랍은 이미 비어 있다.", "책상");
+  show(`<span class="eyebrow">${ROOMS[rid].name} · 책상</span><h3>서랍 속 노란 종이</h3>
+    <p class="deskmsg">${esc(msg)}</p><p class="say">${esc(HIDDEN_DESK)}</p>
+    <div class="btnrow"><button class="btn hot" id="dgo">꺼내 보기</button><button class="btn ghost" id="dx">그냥 두기</button></div>`,
+  () => { $("#dgo").onclick = () => oxGame(rid, key); $("#dx").onclick = hide; });
+}
+function oxGame(rid, key){
+  const qs = shuffle(OX_BANK[rid] || []).slice(0, 3); let i = 0, right = 0;
+  const step = () => { const q = qs[i];
+    show(`${dots(i, qs.length)}<span class="eyebrow">숨은 OX 게임 · ${i+1}/${qs.length}</span><h3>맞으면 O, 틀리면 X</h3>
+      <div class="chalk ox">${esc(q[0])}</div>
+      <div class="oxrow"><button class="oxb o" data-v="1" aria-label="O, 맞다">O</button><button class="oxb x" data-v="0" aria-label="X, 틀리다">X</button></div><div id="fb"></div>`,
+    () => document.querySelectorAll(".oxb").forEach(b => b.onclick = () => {
+      const ok = (b.dataset.v === "1") === q[1]; if(ok) right++;
+      document.querySelectorAll(".oxb").forEach(x => { x.disabled = true; if((x.dataset.v === "1") === q[1]) x.classList.add("right"); });
+      if(!ok) b.classList.add("wrong");
+      $("#fb").innerHTML = `<div class="fb ${ok?"ok":"no"}"><span class="tag">${ok?"정답":"아쉬워요"} · 정답은 ${q[1]?"O":"X"}</span><span>${esc(q[2])}</span></div><div class="btnrow"><button class="btn" id="onx">${i < qs.length-1 ? "다음 문제" : "결과 보기"}</button></div>`;
+      $("#onx").onclick = () => { i++; i < qs.length ? step() : result(); }; $("#onx").focus();
+    }));
+  };
+  const result = () => { const win = right === qs.length;
+    if(win){ S.hidden[key] = true; S.charms++; save(); renderSide(); }
+    show(`<span class="eyebrow">숨은 OX 게임</span><h3>${win ? "부적을 얻었어요!" : "부적이 서랍 속으로 숨어 버렸어요"}</h3>
+      ${win ? `<div class="getcharm"><img src="assets/obj_charm.png" alt="부적"><span>부적 +1 · 지금 ${S.charms}장</span></div>` : ""}
+      <p class="say">${win ? "세 문제를 모두 맞혀 서랍 속 부적을 꺼냈어요. 문제를 풀다 막히면 '부적으로 힌트 보기'를 누르세요." : `${qs.length}문제 가운데 ${right}개를 맞혔어요. 모두 맞혀야 부적을 꺼낼 수 있어요.`}</p>
+      <div class="btnrow">${win ? "" : `<button class="btn hot" id="oretry">다시 도전</button>`}<button class="btn ghost" id="oxx">닫기</button></div>`,
+    () => { $("#oxx").onclick = hide; if(!win) $("#oretry").onclick = () => oxGame(rid, key); });
+  };
+  step();
+}
+
 function question(roomId, key, i){
   const R = ROOMS[roomId], st = R.stations[key], q = st.qs[i], replay = !!S.solved[roomId+"."+key];
   const order = shuffle(q.opts.map((_,k)=>k));
@@ -840,22 +899,16 @@ function question(roomId, key, i){
     <div class="word">${q.w}</div><p class="ctx">${esc(q.ask)}</p>
     <div class="choices">${order.map(k=>`<button class="choice ${TEACHER&&k===0?"key":""}" data-k="${k}">${esc(q.opts[k])}</button>`).join("")}</div>
     <div id="fb"></div>
-    <div class="btnrow" id="ctl"><button class="btn ghost" id="hintB">힌트 보기</button><button class="btn charmbtn" id="charmB" ${S.charms&&!replay?"":"disabled"}>부적 쓰기 (${S.charms})</button><button class="btn ghost" id="later">나중에 하기</button></div>`);
+    <div class="btnrow" id="ctl">${`<button class="btn charmbtn" id="hintB">부적으로 힌트 보기 (${replay||TEACHER?"무료":"보유 "+S.charms+"장"})</button>`}<button class="btn ghost" id="later">나중에 하기</button></div>`);
   let w = 0, helped = false, finished = false;
   $("#later").onclick = hide;
-  $("#hintB").onclick = () => { helped = true; $("#fb").innerHTML = `<p class="hint">${esc(q.hint)}</p>`; };
-  $("#charmB").onclick = () => {
-    if(!S.charms) return; S.charms--; S.used++; save(); renderSide();
-    const wrongs = shuffle([...document.querySelectorAll(".choice")].filter(b => +b.dataset.k !== 0 && !b.disabled)).slice(0,2);
-    wrongs.forEach(b => { b.disabled = true; b.classList.add("gone"); });
-    $("#charmB").disabled = true; $("#fb").innerHTML = `<p class="hint">부적이 타오르며 틀린 보기 두 개를 지웠어요.</p>`;
-  };
+  $("#hintB").onclick = () => charmHint(replay, "#fb", q.hint, () => { helped = true; });
   document.querySelectorAll(".choice").forEach(b => b.onclick = () => {
     if(finished) return;
     const k = +b.dataset.k;
     if(k === 0){
       finished = true; b.classList.add("right"); document.querySelectorAll(".choice").forEach(x => x.disabled = true);
-      const h = helped || w >= 2;
+      const h = helped || w >= 3;
       if(!replay){ h ? S.qHelp++ : S.qSelf++; save(); }
       $("#fb").innerHTML = `<div class="fb ok"><span class="tag">${h?"도움 받아 해결":"스스로 해결"}</span><span>${esc(q.why)}</span></div>`;
       const last = i+1 >= st.qs.length;
@@ -866,7 +919,7 @@ function question(roomId, key, i){
       w++; b.classList.add("wrong"); b.disabled = true;
       if(!replay){ S.wrong++; save(); flicker = .1; }
       const line = GHOST_WRONG[Math.floor(Math.random()*GHOST_WRONG.length)];
-      $("#fb").innerHTML = `<div class="gline">${esc(line)}</div>${w>=2?`<p class="hint">${esc(q.hint)}</p>`:""}`;
+      $("#fb").innerHTML = `<div class="gline">${esc(line)}</div>${w>=3?`<p class="hint">세 번 틀려서 귀신이 힌트를 흘렸어요: ${esc(q.hint)}</p>`:""}`;
     }
   });
 }
@@ -886,17 +939,17 @@ function openRiddle(id){
     ${dial ? `<div class="dials" style="grid-template-columns:repeat(${digits.length},minmax(0,1fr))">${digits.map((d,k)=>`<div class="dial"><span>${esc(Q.labels[k])}</span><button data-d="${k}" data-v="1" aria-label="${esc(Q.labels[k])} 올리기">▲</button><span class="n" id="dn${k}">0</span><button data-d="${k}" data-v="-1" aria-label="${esc(Q.labels[k])} 내리기">▼</button></div>`).join("")}</div>`
       : `<label class="answer">답 적기<input type="text" id="rin" autocomplete="off" placeholder="예: 두세 글자 낱말"></label>`}
     <div id="rfb">${TEACHER ? `<p class="hint">교사용 정답: ${dial ? Q.answer : Q.answer.join(", ")}</p>` : ""}</div>
-    <div class="btnrow"><button class="btn hot" id="rgo">자물쇠 열기</button><button class="btn ghost" id="rhint">힌트 보기</button><button class="btn ghost" id="rx">나중에 하기</button></div>`,
+    <div class="btnrow"><button class="btn hot" id="rgo">자물쇠 열기</button><button class="btn charmbtn" id="rhint">부적으로 힌트 보기 (${TEACHER?"무료":"보유 "+S.charms+"장"})</button><button class="btn ghost" id="rx">나중에 하기</button></div>`,
   () => {
     if(dial) document.querySelectorAll(".dial button").forEach(b => b.onclick = () => { const k = +b.dataset.d; digits[k] = (digits[k] + (+b.dataset.v) + 10) % 10; $("#dn"+k).textContent = digits[k]; });
     else { $("#rin").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); $("#rgo").click(); } }); setTimeout(() => $("#rin").focus(), 50); }
     $("#rx").onclick = hide;
-    $("#rhint").onclick = () => { S.rtries[id] = Math.max(S.rtries[id]||0, 2); save(); $("#rfb").innerHTML = `<p class="hint">${esc(Q.hint)}</p>`; };
+    $("#rhint").onclick = () => charmHint(false, "#rfb", Q.hint, () => { S.rtries[id] = Math.max(S.rtries[id]||0, 3); save(); });
     $("#rgo").onclick = () => {
       const val = dial ? digits.join("") : norm($("#rin").value);
       const ok = dial ? val === Q.answer : Q.answer.some(a => val === norm(a) || val.replace(/(이야|이다|입니다|야|다)$/,"") === norm(a));
       if(ok){
-        const helped = (S.rtries[id]||0) >= 2; S.riddle[id] = true; helped ? S.qHelp++ : S.qSelf++;
+        const helped = (S.rtries[id]||0) >= 3; S.riddle[id] = true; helped ? S.qHelp++ : S.qSelf++;
         const msg = clearRoom(id); save();
         $("#rfb").innerHTML = `<div class="fb ok"><span class="tag">철컥! 자물쇠가 열렸어요</span><span>${esc(Q.why)}</span></div>`;
         document.querySelector("#sheet .btnrow").innerHTML = `<button class="btn hot" id="rdone">문 열고 나가기</button>`;
@@ -907,7 +960,7 @@ function openRiddle(id){
       S.rtries[id] = (S.rtries[id]||0) + 1; S.wrong++; flicker = .1; save();
       let msg = GHOST_WRONG[Math.floor(Math.random()*GHOST_WRONG.length)];
       if(dial){ const right = [...val].filter((d,k) => d === Q.answer[k]).length; msg += ` (자물쇠 ${val.length}칸 가운데 ${right}칸이 딸깍 맞물렸어.)`; }
-      $("#rfb").innerHTML = `<div class="gline">${esc(msg)}</div>${S.rtries[id] >= 2 ? `<p class="hint">${esc(Q.hint)}</p>` : ""}`;
+      $("#rfb").innerHTML = `<div class="gline">${esc(msg)}</div>${S.rtries[id] >= 3 ? `<p class="hint">세 번 틀려서 귀신이 힌트를 흘렸어요: ${esc(Q.hint)}</p>` : ""}`;
     };
   });
 }
@@ -948,9 +1001,12 @@ function matchGame(roomId, key){
     <p class="say">같은 무리의 패 두 개를 차례로 누르세요. 두 패를 잇는 선은 <b>두 번까지만 꺾일 수 있고</b>, 다른 패를 넘어갈 수 없어요. 판 바깥 테두리로는 지나갈 수 있어요.</p>
     <div class="mwrap"><div class="mgrid" id="mgrid" style="grid-template-columns:14px repeat(${W},minmax(0,1fr)) 14px"></div><svg class="mline" id="mline"></svg></div>
     <div id="fb"></div>
-    <div class="btnrow" id="ctl"><button class="btn ghost" id="mhint">힌트(짝 하나 알려 주기)</button><button class="btn ghost" id="mshuf">패 섞기</button><button class="btn ghost" id="mx">나중에 하기</button></div>`,
+    <div class="btnrow" id="ctl"><button class="btn charmbtn" id="mhint">부적으로 짝 하나 보기 (${replay||TEACHER?"무료":"보유 "+S.charms+"장"})</button><button class="btn ghost" id="mshuf">패 섞기</button><button class="btn ghost" id="mx">나중에 하기</button></div>`,
   () => { render(); $("#mx").onclick = hide;
-    $("#mhint").onclick = () => { const p = findPair(); if(!p) return; hints++; [p[0],p[1]].forEach(c => cellEl(c.x,c.y).classList.add("hint")); };
+    $("#mhint").onclick = () => { const p = findPair(); if(!p) return;
+      const r = useCharm(replay); if(!r){ $("#fb").innerHTML = `<p class="hint">${NO_CHARM}</p>`; return; }
+      hints++; [p[0],p[1]].forEach(c => cellEl(c.x,c.y).classList.add("hint"));
+      $("#fb").innerHTML = `<p class="hint">파란 테두리 두 패를 이어 보세요.${charmNote(r)}</p>`; $("#mhint").textContent = `부적으로 짝 하나 보기 (${replay||TEACHER?"무료":"보유 "+S.charms+"장"})`; };
     $("#mshuf").onclick = () => { reshuffle(); for(let n=0; n<60 && !findPair(); n++) reshuffle(); sel = null; render(); }; });
   function cellEl(x,y){ return $(`#mgrid [data-x="${x}"][data-y="${y}"]`); }
   function render(){
@@ -1013,26 +1069,26 @@ function typeGame(roomId, key, i, helpedSoFar){
     <div class="word">${it.w}</div><p class="ctx">${esc(it.ask || st.ask)}</p>
     <label class="answer">답 적기<input type="text" id="tin" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
     <div id="fb">${TEACHER ? `<p class="hint">교사용 정답: ${it.answer.join(", ")}</p>` : ""}</div>
-    <div class="btnrow" id="ctl"><button class="btn hot" id="tgo">확인</button><button class="btn ghost" id="hintB">힌트 보기</button><button class="btn ghost" id="later">나중에 하기</button></div>`,
+    <div class="btnrow" id="ctl"><button class="btn hot" id="tgo">확인</button>${`<button class="btn charmbtn" id="hintB">부적으로 힌트 보기 (${replay||TEACHER?"무료":"보유 "+S.charms+"장"})</button>`}<button class="btn ghost" id="later">나중에 하기</button></div>`,
   () => {
     setTimeout(() => $("#tin").focus(), 50);
     $("#tin").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); $("#tgo") && $("#tgo").click(); } });
     $("#later").onclick = hide;
-    $("#hintB").onclick = () => { helped = true; $("#fb").innerHTML = `<p class="hint">${esc(it.hint)}</p>`; };
+    $("#hintB").onclick = () => charmHint(replay, "#fb", it.hint, () => { helped = true; });
     $("#tgo").onclick = () => {
       const val = norm($("#tin").value);
       if(!val){ $("#fb").innerHTML = `<p class="hint">답을 적어 주세요.</p>`; return; }
       if(it.answer.some(a => norm(a) === val)) return done(false);
       w++; if(!replay){ S.wrong++; save(); flicker = .1; }
-      let extra = w >= 2 ? `<p class="hint">${esc(it.hint)}</p>` : "";
-      if(w >= 3) extra += `<div class="btnrow"><button class="btn ghost" id="reveal">정답 보기</button></div>`;
+      let extra = w >= 3 ? `<p class="hint">세 번 틀려서 귀신이 힌트를 흘렸어요: ${esc(it.hint)}</p>` : "";
+      if(w >= 4) extra += `<div class="btnrow"><button class="btn ghost" id="reveal">정답 보기</button></div>`;
       $("#fb").innerHTML = `<div class="gline">${esc(GHOST_WRONG[Math.floor(Math.random()*GHOST_WRONG.length)])}</div>${extra}`;
       if($("#reveal")) $("#reveal").onclick = () => done(true);
       $("#tin").select();
     };
   });
   function done(revealed){
-    const h = helped || w >= 2 || revealed;
+    const h = helped || w >= 3 || revealed;
     if(!replay){ h ? S.qHelp++ : S.qSelf++; save(); }
     $("#tin").disabled = true;
     $("#fb").innerHTML = `<div class="fb ok"><span class="tag">${revealed ? "정답 확인" : h ? "도움 받아 해결" : "스스로 해결"} · 정답: ${esc(it.answer[0])}</span><span>${esc(it.why)}</span></div>`;
@@ -1065,7 +1121,7 @@ function intro(){
   show(`<img class="hero" src="assets/title.jpg" alt="밤의 학교 복도에서 손전등을 든 학생과 손을 흔드는 귀신"><span class="eyebrow">밤 10시 · 본관 4층</span><h3>야자 탈출</h3>
     <div class="story">${STORY.intro.map(l=>`<p>${esc(l)}</p>`).join("")}</div>
     <p class="say">방향키나 WASD로 움직이고, E로 살펴요. 휴대폰에서는 화면 방향키를 쓰거나 가고 싶은 곳을 누르세요. 노란 <b>!</b>는 아직 풀지 않은 곳, 문 위에 부적이 뜬 곳은 들러 볼 수 있는 특별실이에요.</p>
-    <p class="say" style="font-size:14px">틀려도 실패하지 않아요. 힌트와 부적을 쓰면 끝까지 갈 수 있어요.</p>
+    <p class="say" style="font-size:14px">부적은 막힐 때 힌트를 보는 아이템이에요. 한 장을 가지고 시작하고, 교실 책상 서랍의 숨은 OX 게임·특별실·귀신의 복습 문제로 더 얻을 수 있어요. 틀려도 실패하지 않아요.</p>
     <div class="btnrow"><button class="btn hot" id="go">교실 둘러보기</button></div>`,
     () => $("#go").onclick = () => { S.started = true; S.t0 = Date.now(); S.met.c27 = true; save(); hide(); setTimeout(() => talk(STORY.ghostIntro), 300); });
 }

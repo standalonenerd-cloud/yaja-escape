@@ -155,6 +155,19 @@ label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4
 .mline{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .mline polyline{fill:none;stroke:#4fd18b;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
 @media (max-width:520px){.tile{min-height:48px;font-size:15px}.tile.big{font-size:24px}}
+.hud{position:absolute;right:10px;top:10px;display:flex;align-items:center;gap:4px;background:rgba(7,8,12,.8);border:1px solid #e8d27a;border-radius:16px;padding:2px 12px 2px 6px;font-family:var(--f-mono);font-size:16px;font-weight:700;color:#e8d27a}
+.hud img{width:16px;height:24px;object-fit:contain}
+.deskmsg{font-size:18px;line-height:1.7;margin:0;background:var(--raise);border-radius:6px;padding:14px 16px}
+.chalk.ox{font-size:20px;text-align:center;padding:22px 16px}
+.oxrow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.oxb{font-family:var(--f-display);font-size:56px;line-height:1;padding:18px 0;border-radius:10px;border:2px solid var(--line);background:var(--raise)}
+.oxb.o{color:#7fcf95}.oxb.x{color:#ef8a78}
+.oxb:hover:not(:disabled){border-color:var(--lamp)}
+.oxb.right{border-color:var(--ok);background:color-mix(in srgb,var(--ok) 18%,var(--raise))}
+.oxb.wrong{border-color:var(--bad);opacity:.6}
+.getcharm{display:flex;align-items:center;gap:14px;background:color-mix(in srgb,#e8d27a 14%,transparent);border:1px solid #e8d27a;border-radius:8px;padding:12px 16px;font-size:18px;font-weight:700;color:#e8d27a}
+.getcharm img{width:40px;height:56px;object-fit:contain;animation:charmIn .6s ease-out}
+@keyframes charmIn{from{transform:translateY(-14px) rotate(-12deg);opacity:0}to{transform:none;opacity:1}}
 </style>
 </head>
 <body>
@@ -177,7 +190,8 @@ label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4
     <section class="stage" aria-label="학교">
       <div class="screen">
         <canvas id="cv" width="1280" height="768" tabindex="0" aria-label="학교 지도. 방향키나 WASD로 움직이고 E로 살펴요."></canvas>
-        <span class="where" id="where">2-3반</span>
+        <span class="where" id="where">2-7반</span>
+        <span class="hud" id="hud" title="가진 부적(힌트 아이템)"></span>
         <div class="talk" id="talk" hidden><span class="who">야자 귀신</span><p id="talkText"></p><button id="talkX" aria-label="닫기">닫기</button></div>
         <div class="pad" id="pad" aria-hidden="true">
           <button class="u" data-dir="up">▲</button><button class="l" data-dir="left">◀</button>
