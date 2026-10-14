@@ -371,7 +371,7 @@ function drawHall(t){
       drawDoor(o, open, done);
       if(done) POST.push(() => bubble(x+w-14, y+14, "✓", K.exit, "#08140d", 10));
       else if(o.room === nxt) POST.push(() => { glowRect(x,y,w,h,"#f2d27a",t,4); beacon(o.door[0]*T+T/2, o.door[1]*T - 4, "!", "#f2d27a", t, 13); });
-      else if(ROOMS[o.room].kind !== "class" && open) POST.push(() => charmIcon(o.door[0]*T+T/2, o.door[1]*T - 8 + Math.sin(t*3+o.c)*2));
+      else if(ROOMS[o.room].kind !== "class" && open) POST.push(() => bubble(o.door[0]*T+T/2, o.door[1]*T - 8 + Math.sin(t*3+o.c)*2, "?", "#b9c8ff", "#1a1608", 9));
     } else if(o.kind === "locked"){
       rect(x,y,w,h,COLOR.white); rect(x+3,y+3,w-6,h-6,"#bdbdc2");
       ctx.save(); ctx.beginPath(); ctx.rect(x,y,w,h); ctx.clip();
@@ -768,7 +768,7 @@ function show(html, after){ $("#sheet").innerHTML = html; $("#overlay").hidden =
 function hide(){ $("#overlay").hidden = true; renderSide(); cv.focus({preventScroll:true}); }
 $("#overlay").addEventListener("click", e => { if(e.target.id==="overlay" && S.started) hide(); });
 
-/* 귀신과 이야기하기: 길 안내 · 귀신 이야기 · 복습 문제(맞히면 부적) */
+/* 귀신과 이야기하기: 길 안내 · 귀신 이야기 · 복습 문제 */
 function ghostGuide(){
   const n = nextRequired();
   if(!n) return "2-1반까지 다 풀었잖아! 3층 복도 왼쪽 끝 동편 계단으로 가. 문 열어 놨어.";
@@ -787,7 +787,7 @@ function openGhost(){
     <div class="gopts" id="gopts">
       <button class="btn ghost" id="g1">어디로 가야 해?</button>
       <button class="btn ghost" id="g2">너는 누구야?</button>
-      <button class="btn ghost" id="g3">복습 문제 내 줘 (맞히면 부적)</button>
+      <button class="btn ghost" id="g3">복습 문제 내 줘</button>
       <button class="btn" id="gx">그만 이야기하기</button>
     </div><div id="gquiz"></div>`,
   () => {
@@ -803,9 +803,8 @@ function ghostQuiz(say){
   const pool = [];
   for(const [rid,R] of Object.entries(ROOMS)) for(const [k,st] of Object.entries(R.stations)) if(S.solved[rid+"."+k]) (st.qs || []).forEach(q => pool.push(q));
   if(!pool.length) return say("아직 푼 문제가 없잖아. 칠판 문제부터 풀고 와.");
-  if(S.quizUsed >= earned && !TEACHER) return say("부적은 교실을 하나 풀 때마다 한 장씩만 줄 수 있어. 다음 교실을 풀고 와.");
   const q = pool[Math.floor(Math.random()*pool.length)], order = shuffle(q.opts.map((_,k)=>k));
-  say("좋아, 아까 푼 거야. 기억나? 한 번에 맞혀야 부적을 줄 거야.");
+  say("좋아, 아까 푼 거야. 기억나?");
   $("#gopts").hidden = true;
   $("#gquiz").innerHTML = `<div class="word">${q.w}</div><p class="ctx">${esc(q.ask)}</p>
     <div class="choices">${order.map(k=>`<button class="choice ${TEACHER&&k===0?"key":""}" data-k="${k}">${esc(q.opts[k])}</button>`).join("")}</div><div id="gfb"></div>`;
@@ -813,8 +812,7 @@ function ghostQuiz(say){
     const ok = +b.dataset.k === 0;
     document.querySelectorAll("#gquiz .choice").forEach(x => { x.disabled = true; if(+x.dataset.k === 0) x.classList.add("right"); });
     if(!ok) b.classList.add("wrong");
-    if(!TEACHER){ S.quizUsed++; if(ok) S.charms++; save(); renderSide(); }
-    say(ok ? "오, 제법인데? 부적 한 장 줄게." : "땡! 이번엔 부적 없어. 다음 교실 풀고 다시 와.");
+    say(ok ? "오, 제법인데? 제대로 기억하고 있네." : "땡! 아래 풀이를 다시 읽어 봐.");
     $("#gfb").innerHTML = `<div class="fb ${ok?"ok":"no"}"><span>${esc(q.why)}</span></div><div class="btnrow"><button class="btn" id="gdone">고마워</button></div>`;
     $("#gdone").onclick = hide; $("#gdone").focus();
   });
@@ -823,9 +821,9 @@ function openStation(roomId, key){
   const R = ROOMS[roomId], st = R.stations[key], done = !!S.solved[roomId+"."+key];
   if(R.kind === "rest"){
     show(`<span class="eyebrow">${R.name}</span><h3>${st.name}</h3><div class="chalk" style="background:#2c3550;border-color:#8a93a8">${esc(st.note)}</div>
-      ${done ? "" : `<div class="fb ok"><span class="tag">부적 1장을 얻었어요</span><span>문제를 풀 때 '부적 쓰기'를 누르면 틀린 보기 두 개가 지워져요.</span></div>`}
+
       <div class="btnrow"><button class="btn" id="ok">닫기</button></div>`, () => $("#ok").onclick = hide);
-    if(!done){ S.solved[roomId+"."+key] = true; S.cleared[roomId] = true; S.charms++; save(); renderSide(); }
+    if(!done){ S.solved[roomId+"."+key] = true; S.cleared[roomId] = true; save(); renderSide(); }
     return;
   }
   show(`<span class="eyebrow">${R.name} · ${R.unit}</span><h3>${st.name}</h3>
@@ -837,7 +835,7 @@ function openStation(roomId, key){
 function dots(i,n){ return `<div class="dots">${Array.from({length:n},(_,k)=>`<i class="${k<=i?"on":""}"></i>`).join("")}</div>`; }
 
 /* ---------- 부적: 힌트를 보는 아이템 ---------- */
-const NO_CHARM = "부적이 없어요. 교실 책상을 살펴 숨은 OX 게임에서 얻을 수 있어요. (세 번 틀리면 귀신이 힌트를 흘려 주기도 해요)";
+const NO_CHARM = "부적이 없어요. 교실마다 책상 하나의 서랍에 숨은 OX 게임이 있어요. 거기서 한 장을 얻을 수 있어요. (세 번 틀리면 귀신이 힌트를 흘려 주기도 해요)";
 function useCharm(replay){ if(replay || TEACHER) return "free"; if(S.charms <= 0) return null; S.charms--; S.used++; save(); renderSide(); return "used"; }
 const charmNote = r => r === "used" ? ` (부적 1장 사용 · 남은 부적 ${S.charms}장)` : "";
 function charmHint(replay, box, hint, onUse){
@@ -856,7 +854,7 @@ const DESK_MSGS = (() => { const out = {};
     const list = [];   // 교실마다 공부 3 · 먹을거리 2 · 낙서 3 · 캐릭터 2 · 아이돌 2
     Object.entries({ study:3, food:2, doodle:3, chara:2, idol:2 }).forEach(([c, n]) => { if(DESK_TEXT[c]) for(let k=0;k<n;k++) list.push(DESK_TEXT[c][(i*n+k) % DESK_TEXT[c].length]); });
     const rnd = seeded(rid); for(let a=list.length-1;a>0;a--){ const b = Math.floor(rnd()*(a+1)); [list[a],list[b]] = [list[b],list[a]]; }
-    const hidden = new Set(); while(hidden.size < 2) hidden.add(Math.floor(rnd()*list.length));
+    const hidden = new Set(); while(hidden.size < 1) hidden.add(Math.floor(rnd()*list.length));
     out[rid] = { list, hidden };
   }); return out; })();
 function openDesk(j){
@@ -928,7 +926,7 @@ function clearRoom(roomId){
   const R = ROOMS[roomId];
   S.cleared[roomId] = true;
   if(R.kind === "class") return roomId === "c23" ? STORY.floorDown : roomId === "c21" ? "…다 풀었네. 동편 계단 문이 열렸어. 교실을 나가서 복도 끝으로 가." : STORY.roomClear;
-  S.charms++; return `${R.name} 문제를 다 풀었어. 부적 한 장 가져가.`;
+  return `${R.name} 문제를 다 풀었어. 제법인데?`;
 }
 /* 문 자물쇠 수수께끼 */
 const norm = v => String(v).replace(/[\s.,!?~'"“”‘’()\[\]]/g, "");
@@ -1121,8 +1119,8 @@ function stationDone(roomId, key, replay){
 function intro(){
   show(`<img class="hero" src="assets/title.jpg" alt="밤의 학교 복도에서 손전등을 든 학생과 손을 흔드는 귀신"><span class="eyebrow">밤 10시 · 본관 4층</span><h3>야자 탈출</h3>
     <div class="story">${STORY.intro.map(l=>`<p>${esc(l)}</p>`).join("")}</div>
-    <p class="say">방향키나 WASD로 움직이고, E로 살펴요. 휴대폰에서는 화면 방향키를 쓰거나 가고 싶은 곳을 누르세요. 노란 <b>!</b>는 아직 풀지 않은 곳, 문 위에 부적이 뜬 곳은 들러 볼 수 있는 특별실이에요.</p>
-    <p class="say" style="font-size:14px">부적은 막힐 때 힌트를 보는 아이템이에요. 한 장을 가지고 시작하고, 교실 책상 서랍의 숨은 OX 게임·특별실·귀신의 복습 문제로 더 얻을 수 있어요. 틀려도 실패하지 않아요.</p>
+    <p class="say">방향키나 WASD로 움직이고, E로 살펴요. 휴대폰에서는 화면 방향키를 쓰거나 가고 싶은 곳을 누르세요. 노란 <b>!</b>는 아직 풀지 않은 곳, 문 위에 ?가 뜬 곳은 들러 볼 수 있는 특별실이에요.</p>
+    <p class="say" style="font-size:14px">부적은 막힐 때 힌트를 보는 아이템이에요. 한 장을 가지고 시작하고, 교실마다 책상 하나의 서랍에 숨은 OX 게임으로 한 장씩 더 얻을 수 있어요. 틀려도 실패하지 않아요.</p>
     <div class="btnrow"><button class="btn hot" id="go">교실 둘러보기</button></div>`,
     () => $("#go").onclick = () => { S.started = true; S.t0 = Date.now(); S.met.c27 = true; save(); hide(); setTimeout(() => talk(STORY.ghostIntro), 300); });
 }
