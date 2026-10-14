@@ -853,7 +853,8 @@ function seeded(str){ let h = 1779033703 ^ str.length; for(const ch of str){ h =
   return () => { h = Math.imul(h ^ h >>> 16, 2246822507); h = Math.imul(h ^ h >>> 13, 3266489909); h ^= h >>> 16; return (h >>> 0) / 4294967296; }; }
 const DESK_MSGS = (() => { const out = {};
   CHAIN.forEach((rid, i) => {
-    const list = []; ["study","food","doodle","chara"].forEach(c => { for(let k=0;k<3;k++) list.push(DESK_TEXT[c][(i*3+k) % DESK_TEXT[c].length]); });
+    const list = [];   // 교실마다 공부 3 · 먹을거리 2 · 낙서 3 · 캐릭터 2 · 아이돌 2
+    Object.entries({ study:3, food:2, doodle:3, chara:2, idol:2 }).forEach(([c, n]) => { if(DESK_TEXT[c]) for(let k=0;k<n;k++) list.push(DESK_TEXT[c][(i*n+k) % DESK_TEXT[c].length]); });
     const rnd = seeded(rid); for(let a=list.length-1;a>0;a--){ const b = Math.floor(rnd()*(a+1)); [list[a],list[b]] = [list[b],list[a]]; }
     const hidden = new Set(); while(hidden.size < 2) hidden.add(Math.floor(rnd()*list.length));
     out[rid] = { list, hidden };
