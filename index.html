@@ -168,6 +168,10 @@ label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4
 .getcharm{display:flex;align-items:center;gap:14px;background:color-mix(in srgb,#e8d27a 14%,transparent);border:1px solid #e8d27a;border-radius:8px;padding:12px 16px;font-size:18px;font-weight:700;color:#e8d27a}
 .getcharm img{width:40px;height:56px;object-fit:contain;animation:charmIn .6s ease-out}
 @keyframes charmIn{from{transform:translateY(-14px) rotate(-12deg);opacity:0}to{transform:none;opacity:1}}
+.roll{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.roll .wide{grid-column:1/-1}
+.roll select,.roll input{width:100%;background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:10px 12px;color:var(--fg);font:inherit;font-size:18px}
+.who-line{margin:0;font-size:15px;color:var(--lamp);font-weight:700}
 </style>
 </head>
 <body>
@@ -205,6 +209,7 @@ label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4
 
     <aside class="note" aria-label="탈출 수첩">
       <h2>탈출 수첩</h2>
+      <p class="who-line" id="whoLine"></p>
       <h3>꼭 풀어야 하는 교실</h3>
       <ul class="route" id="route"></ul>
       <h3>부적 (힌트 아이템 · 교실마다 1장 숨어 있어요)</h3>
