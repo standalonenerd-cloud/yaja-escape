@@ -172,6 +172,27 @@ label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4
 .roll .wide{grid-column:1/-1}
 .roll select,.roll input{width:100%;background:var(--raise);border:1px solid var(--line);border-radius:6px;padding:10px 12px;color:var(--fg);font:inherit;font-size:18px}
 .who-line{margin:0;font-size:15px;color:var(--lamp);font-weight:700}
+/* 가방 · 물건 퍼즐 */
+.bagbtn{position:absolute;right:10px;top:44px;background:rgba(7,8,12,.85);border:1px solid #c79bff;border-radius:16px;padding:3px 12px;font-size:15px;font-weight:700;color:#e5d6ff}
+.bagbtn b{color:#fff;font-family:var(--f-mono)}
+.bagbtn:hover{background:#2b2340}
+.baglist{display:flex;flex-wrap:wrap;gap:6px}
+.chip{background:var(--raise);border:1px solid #6b5a8e;border-radius:14px;padding:4px 10px;font-size:14px}
+.bag{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (max-width:520px){.bag{grid-template-columns:minmax(0,1fr)}}
+.bag .item{display:flex;gap:10px;align-items:center;background:var(--raise);border:2px solid var(--line);border-radius:8px;padding:10px 12px;cursor:pointer;text-align:left}
+.bag .item:hover{border-color:#c79bff}
+.bag .item.on{border-color:#c79bff;background:#2b2340;box-shadow:0 0 0 2px rgba(199,155,255,.35)}
+.bag .item .ic{font-size:30px;line-height:1;flex:none}
+.bag .item span:nth-child(2){display:flex;flex-direction:column;gap:2px;flex:1;min-width:0}
+.bag .item small{color:var(--muted);font-size:13px;line-height:1.45}
+.btn.sm{padding:6px 10px;font-size:14px;flex:none}
+.usebag{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+@media (max-width:520px){.usebag{grid-template-columns:minmax(0,1fr)}}
+.reward{margin:0;font-size:15px;color:#e5d6ff;background:#2b2340;border:1px solid #6b5a8e;border-radius:6px;padding:8px 12px}
+.dom{display:inline-block;font-size:12px;font-family:var(--f-mono);border-radius:10px;padding:1px 9px;font-weight:700;letter-spacing:.04em}
+.dom-ph{background:#2d4b3a;color:#9fe0b6}.dom-wd{background:#4b3d22;color:#f2d27a}.dom-st{background:#2c3a5e;color:#b9c8ff}
+.places button[data-s=pz]{border-color:#c79bff;color:#e5d6ff}
 </style>
 </head>
 <body>
@@ -180,7 +201,7 @@ label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4
   <header>
     <div class="brand">
       <h1>야자 <span>탈출</span></h1>
-      <p class="sub">화법과 언어 · 문법 방탈출 · 본관 3·4층</p>
+      <p class="sub">화법과 언어 · 음운·단어·문장 방탈출 · 본관 3·4층</p>
     </div>
     <div class="stats">
       <span>교실 <b id="stRooms">0/7</b></span>
@@ -196,6 +217,7 @@ label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4
         <canvas id="cv" width="1280" height="768" tabindex="0" aria-label="학교 지도. 방향키나 WASD로 움직이고 E로 살펴요."></canvas>
         <span class="where" id="where">2-7반</span>
         <span class="hud" id="hud" title="가진 부적(힌트 아이템)"></span>
+        <button class="bagbtn" id="bagBtn" title="가방 열기 (B)">🎒 가방</button>
         <div class="talk" id="talk" hidden><span class="who">야자 귀신</span><p id="talkText"></p><button id="talkX" aria-label="닫기">닫기</button></div>
         <div class="pad" id="pad" aria-hidden="true">
           <button class="u" data-dir="up">▲</button><button class="l" data-dir="left">◀</button>
@@ -203,7 +225,7 @@ label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4
         </div>
         <button class="act" id="actBtn" disabled>살필 것 없음</button>
       </div>
-      <div class="helpline"><span><kbd>방향키</kbd>·<kbd>WASD</kbd> 이동 &nbsp; <kbd>E</kbd>·<kbd>Enter</kbd> 살피기 &nbsp; 화면을 누르면 그곳으로 걸어가요</span></div>
+      <div class="helpline"><span><kbd>방향키</kbd>·<kbd>WASD</kbd> 이동 &nbsp; <kbd>E</kbd>·<kbd>Enter</kbd> 살피기 &nbsp; <kbd>B</kbd> 가방 &nbsp; 화면을 누르면 그곳으로 걸어가요</span></div>
       <div class="helpline"><span>이 층의 장소</span><div class="places" id="places"></div></div>
     </section>
 
@@ -212,6 +234,8 @@ label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4
       <p class="who-line" id="whoLine"></p>
       <h3>꼭 풀어야 하는 교실</h3>
       <ul class="route" id="route"></ul>
+      <h3>가방 (눌러서 열기 · 물건 합치기)</h3>
+      <div class="baglist" id="bagList"></div>
       <h3>부적 (힌트 아이템 · 교실마다 1장 숨어 있어요)</h3>
       <div class="charms" id="charms"></div>
       <div class="log" id="log"></div>
@@ -222,6 +246,7 @@ label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4
 
 <div class="overlay" id="overlay" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true"></div></div>
 
+<script src="js/bank.js"></script>
 <script src="js/data.js"></script>
 <script src="js/game.js"></script>
 

@@ -6,7 +6,7 @@
 const T = 32, VW = 640, VH = 384;
 const TOUCH = matchMedia("(pointer: coarse)").matches;
 const TEACHER = location.hash.replace("#","") === "teacher";
-const KEY = "yaja-escape-v2";
+const KEY = "yaja-escape-v3";
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 const shuffle = a => { a = a.slice(); for(let i=a.length-1;i>0;i--){ const j=Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; } return a; };
@@ -133,6 +133,7 @@ function buildRoom(id){
   if(key === "class") for(const [fx, f] of Object.entries(CLASS_FIXTURES)){
     const k = Object.keys(R.stations).find(k => (R.stations[k].at || k) === fx);
     if(k) add(s,{kind:"station", key:k, fx, label:R.stations[k].name, c:f[0], r:f[1], w:f[2], h:f[3]});
+    else if(R.puzzles && R.puzzles[fx]) add(s,{kind:"puzzle", fx, label:R.puzzles[fx].name, c:f[0], r:f[1], w:f[2], h:f[3]});
     else add(s,{kind:"prop", fx, label:FIX_NAME[fx], say:f[4], c:f[0], r:f[1], w:f[2], h:f[3]});
   }
   L.props.forEach(p => add(s,{kind:"prop", c:p[0], r:p[1], w:p[2], h:p[3], say:p[4] || "특별한 건 없다."}));
@@ -143,9 +144,11 @@ function buildRoom(id){
 /* ------------------------------------------------------------------
    2. 상태
    ------------------------------------------------------------------ */
-const fresh = () => ({ who:null, lore:0, quizUsed:0, riddle:{}, rtries:{}, logos:{}, started:false, t0:0, tEnd:0, scene:"c27", px:null, py:null, dir:"up",
-  solved:{}, cleared:{}, charms:1, used:0, hidden:{}, qSelf:0, qHelp:0, wrong:0, escaped:false, refl:"", met:{} });
+const fresh = () => ({ who:null, lore:0, riddle:{}, rtries:{}, logos:{}, started:false, t0:0, tEnd:0, scene:"c27", px:null, py:null, dir:"up",
+  solved:{}, cleared:{}, charms:1, used:0, hidden:{}, qSelf:0, qHelp:0, wrong:0, escaped:false, refl:"", met:{},
+  bag:START_BAG.slice(), pz:{}, ptries:{}, plan:{}, deck:{}, dp:{}, rid:null, got:{}, mused:[], smode:{match:0, type:0}, items:0 });
 let S = load();
+setup();
 function load(){ if(TEACHER) return fresh(); try{ const v = JSON.parse(localStorage.getItem(KEY)); return v ? Object.assign(fresh(), v) : fresh(); }catch(e){ return fresh(); } }
 function save(){ if(TEACHER) return; S.px = P.x; S.py = P.y; S.dir = P.dir; try{ localStorage.setItem(KEY, JSON.stringify(S)); }catch(e){} }
 
@@ -158,7 +161,77 @@ function roomOpen(id){
   return i === 0 || isCleared(CHAIN[i-1]);
 }
 const allStations = id => Object.keys(ROOMS[id].stations).every(k => S.solved[id+"."+k]);
-const riddlePending = id => ROOMS[id].kind === "class" && RIDDLES[id] && !S.riddle[id] && allStations(id) && !isCleared(id);
+
+/* ---------- 무작위 출제: 문제 은행에서 겹치지 않게 뽑기 ---------- */
+function setup(){
+  if(!S.rid){   // 수수께끼를 교실마다 무작위로 걸기. 2-1반 문은 낱말 자물쇠
+    const keys = shuffle(Object.keys(RIDDLES)), last = CHAIN[CHAIN.length-1];
+    const wi = keys.findIndex(k => RIDDLES[k].type === "word");
+    S.rid = { [last]: keys.splice(wi, 1)[0] };
+    CHAIN.slice(0,-1).forEach((id,i) => S.rid[id] = keys[i % keys.length]);
+  }
+}
+const Q = id => { const [d,i] = id.split(":"); return Object.assign({ d }, QBANK[d][+i]); };
+const TQ = id => { const [d,i] = id.split(":"); return Object.assign({ d }, TYPE_BANK[d][+i]); };
+function drawFrom(kind, d){
+  const bank = kind === "t" ? TYPE_BANK[d] : QBANK[d], k = kind + d;
+  if(!S.deck[k] || S.deck[k].length !== bank.length || (S.dp[k]||0) >= bank.length){ S.deck[k] = shuffle(bank.map((_,i)=>i)); S.dp[k] = 0; }
+  return d + ":" + S.deck[k][S.dp[k]++];
+}
+function mixed(n){   // 음운·단어·문장이 고르게, 순서는 무작위
+  const a = shuffle(["ph","wd","st"]); while(a.length < n) a.push(["ph","wd","st"][Math.floor(Math.random()*3)]);
+  return shuffle(a.slice(0, n));
+}
+function drawMatch(){
+  let left = MATCH_BANK.map((_,i)=>i).filter(i => !S.mused.includes(i));
+  if(!left.length){ S.mused = []; left = MATCH_BANK.map((_,i)=>i); }
+  const i = left[Math.floor(Math.random()*left.length)]; S.mused.push(i); return i;
+}
+function planRoom(rid){
+  if(S.plan[rid]) return S.plan[rid];
+  const R = ROOMS[rid], keys = Object.keys(R.stations), plan = {};
+  if(R.kind === "class"){
+    const sp = keys[Math.floor(Math.random()*keys.length)];
+    const m = S.smode.match === S.smode.type ? (Math.random() < .5 ? "match" : "type") : (S.smode.match < S.smode.type ? "match" : "type");
+    keys.forEach(k => {
+      if(k !== sp) plan[k] = { mode:"q", ids: mixed(3).map(d => drawFrom("q", d)) };
+      else { S.smode[m]++; plan[k] = m === "match" ? { mode:"match", set: drawMatch() } : { mode:"type", ids: mixed(4).map(d => drawFrom("t", d)) }; }
+    });
+  } else if(R.kind === "side") plan.main = { mode:"q", ids: mixed(4).map(d => drawFrom("q", d)) };
+  S.plan[rid] = plan; save(); return plan;
+}
+const planOf = (rid, key) => planRoom(rid)[key] || { mode:"none" };
+const domTag = d => `<span class="dom dom-${d}">${DOMAIN[d]}</span>`;
+
+/* ---------- 가방 · 물건 퍼즐 ---------- */
+const hasItem = id => S.bag.includes(id);
+function addItem(id){ S.bag.push(id); S.items++; save(); renderSide(); }
+function removeItem(id){ const i = S.bag.indexOf(id); if(i >= 0) S.bag.splice(i, 1); save(); renderSide(); }
+const pzKey = (rid, fx) => rid + "." + fx;
+const pzStage = (rid, fx) => S.pz[pzKey(rid, fx)] || 0;
+const pzDone = (rid, fx) => pzStage(rid, fx) >= ROOMS[rid].puzzles[fx].steps.length;
+const pzGated = (rid, fx) => { const p = ROOMS[rid].puzzles[fx]; return p.after && !pzDone(rid, p.after); };
+const needs = step => [].concat(step.need);
+const allRecipes = () => Object.values(ROOMS).flatMap(R => R.recipes || []);
+const readyRecipe = () => allRecipes().find(r => r.in.every(i => hasItem(i)));
+const isKeyRoom = id => ROOMS[id].kind === "class";
+const needsRiddleAtDoor = id => ROOMS[id].door === "key+riddle";
+function roomHint(rid, full){
+  const R = ROOMS[rid];
+  if(R.kind !== "class") return null;
+  if(hasItem("key")) return needsRiddleAtDoor(rid) && !S.riddle[rid] ? "열쇠를 만들었네! 이제 나가는 문으로 가. 문에 걸린 낱말 자물쇠도 풀어야 해. 막히면 벽의 교표를 살펴봐." : "열쇠가 생겼잖아! 나가는 문으로 가서 열어.";
+  if(hasItem("lockbox")) return "자물쇠 상자를 얻었네. 가방을 열고 상자의 '열어 보기'를 눌러. 막히면 벽의 교표 뒷면을 봐.";
+  const r = readyRecipe(); if(r) return full ? `가방 속 ${r.in.map(i => ITEMS[i].name).join(", ")}… 한꺼번에 골라서 합쳐 볼래?` : "가방 속 물건 몇 가지를 합치면 쓸 만한 게 나올 것 같은데? 킥킥.";
+  for(const fx of Object.keys(R.puzzles || {})){
+    if(pzDone(rid, fx) || pzGated(rid, fx)) continue;
+    const st = R.puzzles[fx].steps[pzStage(rid, fx)];
+    if(needs(st).some(hasItem)) return `${R.puzzles[fx].name}에 가방 속 물건을 써 봐. 보라색 ? 표시가 뜬 곳이야.`;
+  }
+  const left = Object.keys(R.stations).filter(k => !S.solved[rid+"."+k]).map(k => R.stations[k].name);
+  if(left.length) return `노란 ! 표시: ${left.join(", ")}. 문제를 풀면 물건을 줄게.`;
+  for(const fx of Object.keys(R.puzzles || {})) if(!pzDone(rid, fx) && !pzGated(rid, fx)) return R.puzzles[fx].steps[pzStage(rid, fx)].tip;
+  return "가방을 열어 물건들을 살펴봐.";
+}
 const nextRequired = () => CHAIN.find(id => !isCleared(id)) || null;
 const stairDownOpen = () => TEACHER || isCleared("c23");
 const exitOpen = () => TEACHER || isCleared("c21");
@@ -251,7 +324,11 @@ function actText(o){
   if(!o) return "살필 것 없음";
   if(o.kind === "ghost") return "귀신에게 말 걸기";
   if(o.kind === "room") return roomOpen(o.room) ? `${ROOMS[o.room].name} 들어가기` : `${ROOMS[o.room].name} · 잠김`;
-  if(o.kind === "exit") return riddlePending(SC.room) && !TEACHER ? "문 자물쇠 풀기" : "복도로 나가기";
+  if(o.kind === "exit"){
+    if(TEACHER || !isKeyRoom(SC.room) || isCleared(SC.room)) return "복도로 나가기";
+    return hasItem("key") ? "열쇠로 문 열기" : "잠긴 문 · 열쇠 필요";
+  }
+  if(o.kind === "puzzle") return pzGated(SC.room, o.fx) ? `${FIX_NAME[o.fx]} 살펴보기` : pzDone(SC.room, o.fx) ? `${o.label} 살펴보기` : `${o.label} · 물건 쓰기`;
   if(o.kind === "logo") return "교표 살펴보기";
   if(o.kind === "desk") return "책상 살펴보기";
   if(o.kind === "stairC") return SC.id === "F4" ? "3층으로 내려가기" : "4층으로 올라가기";
@@ -272,10 +349,7 @@ function interact(o){
   }
   if(o.kind === "exit"){
     const R = ROOMS[SC.room];
-    if(R.kind === "class" && !isCleared(SC.room) && !TEACHER){
-      if(riddlePending(SC.room)) return openRiddle(SC.room);
-      return talk("어딜 가? 이 교실 문제를 다 풀기 전엔 문이 안 열려.");
-    }
+    if(R.kind === "class" && !isCleared(SC.room) && !TEACHER) return openDoor(SC.room);
     const h = hallFor(SC.room);
     return enter(h.floor, [h.o.door[0], h.o.door[1]+1], "down");
   }
@@ -295,17 +369,19 @@ function interact(o){
   }
   if(o.kind === "locked") return talk(`${o.label}은 잠겨 있어. 배치도에서 흰 방은 못 들어가.`, "안내");
   if(o.kind === "station") return openStation(SC.room, o.key);
+  if(o.kind === "puzzle") return openPuzzle(SC.room, o.fx);
   if(o.kind === "prop") return talk(o.say || "특별한 건 없다.", "살펴보니");
   if(o.kind === "desk") return openDesk(o.j);
   if(o.kind === "logo"){
     const first = !S.logos[SC.id]; S.logos[SC.id] = true; save(); renderSide();
     const n = Object.keys(S.logos).length, tot = Object.keys(ROOMS).length + 2;
-    const msg = RIDDLES[SC.id] ? `교표 뒷면에 작은 글씨가 있다. "${RIDDLES[SC.id].clue}"` : (LOGO_SAY[SC.id] || "충주예성여고 교표가 반짝인다.");
+    const rk = S.rid && S.rid[SC.id], msg = rk ? `교표 뒷면에 작은 글씨가 있다. "${RIDDLES[rk].clue}"` : (LOGO_SAY[SC.id] || "충주예성여고 교표가 반짝인다.");
     return talk(first ? `${msg} (찾은 교표 ${n}/${tot})` : msg, "교표");
   }
 }
 function onEnterRoom(id){
   const R = ROOMS[id];
+  planRoom(id);
   if(!S.met[id] && R.ghost && !isCleared(id)){ S.met[id] = true; save(); setTimeout(() => talk(R.ghost), 250); }
 }
 
@@ -484,10 +560,16 @@ function drawMarks(t){
     if(done){ bubble(cx, y + 2, "✓", K.exit, "#08140d", 11); plate(o.label, cx, y + h/2 + 6, 11); }
     else { glowRect(x, y, w, h, "#f2d27a", t, 4); beacon(cx, y - 2, "!", "#f2d27a", t, 14); plate(o.label, cx, y + h/2 + 8, 12); }
   }
+  for(const o of SC.objs){
+    if(o.kind !== "puzzle" || pzGated(SC.room, o.fx)) continue;
+    const x = o.c*T, y = o.r*T, w = o.w*T, h = o.h*T, cx = x + (o.w >= 6 ? w*0.25 : w/2);
+    if(pzDone(SC.room, o.fx)) bubble(cx, y + 2, "✓", "#c79bff", "#1a1030", 10);
+    else { glowRect(x, y, w, h, "#c79bff", t, 4); beacon(cx, y - 2, "?", "#c79bff", t, 14); plate(o.label, cx, y + h/2 + 8, 12); }
+  }
   const e = SC.objs.find(o => o.kind === "exit");
-  if(e){ const open = ROOMS[SC.room].kind !== "class" || isCleared(SC.room) || TEACHER, rid = riddlePending(SC.room);
+  if(e){ const open = !isKeyRoom(SC.room) || isCleared(SC.room) || TEACHER, key = !open && hasItem("key");
     const ex = (e.c+e.w/2)*T, ey = (e.r+e.h/2)*T;
-    if(rid){ glowRect(e.c*T, e.r*T, e.w*T, e.h*T, "#b9c8ff", t, 4); beacon(ex, e.r*T - 4, "?", "#b9c8ff", t, 14); plate("수수께끼 자물쇠", ex, ey + 8, 12); }
+    if(key){ glowRect(e.c*T, e.r*T, e.w*T, e.h*T, K.exit, t, 4); beacon(ex, e.r*T - 4, "🔑", K.exit, t, 14); plate("열쇠로 열기", ex, ey + 8, 12); }
     else { glowRect(e.c*T, e.r*T, e.w*T, e.h*T, open ? K.exit : "rgba(239,138,120,.9)", t, 3); plate(open ? "나가는 문" : "잠긴 문", ex, ey + 5, 11); } }
 }
 /* 교표: 벽에 걸린 둥근 학교 로고. 아직 못 찾은 교표는 반짝임 */
@@ -525,9 +607,7 @@ function ghostLine(){
     if(SC.id === "F4" && ["c22","c21"].includes(n)) return GHOST_NEAR.stairs;
     return fmt(GHOST_NEAR.hall.replace("{room}", ROOMS[n].name));
   }
-  if(riddlePending(SC.room)) return "이제 문에 걸린 수수께끼만 풀면 돼. 막히면 벽의 교표를 살펴봐.";
-  const R = ROOMS[SC.room], left = Object.keys(R.stations).filter(k => !S.solved[SC.room+"."+k]).length;
-  return fmt(GHOST_NEAR.room.replace("{left}", left));
+  return fmt(roomHint(SC.room) || "{call}, 천천히 둘러봐.");
 }
 function wrapText(str, maxW){
   const out = []; let line = "";
@@ -636,7 +716,7 @@ function drawFog(t){
   hole(px+dx*76, py+dy*64, 24, 130, .95);
   for(const o of SC.objs){
     if(o.kind==="stairC" || o.kind==="stairE") hole(o.door[0]*T+T/2-camX, o.door[1]*T+T/2-camY, 4, 46, .7);
-    if(o.kind==="station" || o.kind==="exit" || (o.kind==="room" && o.room===nextRequired())){ const dc = o.door||[o.c+o.w/2-.5, o.r+o.h/2]; hole(dc[0]*T+T/2-camX, dc[1]*T-camY, 4, 52, .62); }
+    if(o.kind==="station" || o.kind==="puzzle" || o.kind==="exit" || (o.kind==="room" && o.room===nextRequired())){ const dc = o.door||[o.c+o.w/2-.5, o.r+o.h/2]; hole(dc[0]*T+T/2-camX, dc[1]*T-camY, 4, 52, .62); }
   }
   const g = ghostPos(); if(g) hole(g[0]-camX, g[1]-24-camY, 4, 50, .85);
   fx.globalCompositeOperation = "source-over";
@@ -694,6 +774,7 @@ document.addEventListener("keydown", e => {
   if(/INPUT|TEXTAREA/.test(document.activeElement.tagName)) return;
   if(KEYMAP[e.key]){ keys[KEYMAP[e.key]] = true; e.preventDefault(); hideTalkSoon(); }
   else if(["e","E","Enter"," "].includes(e.key) && document.activeElement === cv){ e.preventDefault(); interact(); }
+  else if(["b","B","ㅠ","i","I","ㅑ"].includes(e.key) && S.started){ e.preventDefault(); openBag(); }
 });
 document.addEventListener("keyup", e => { if(KEYMAP[e.key]) keys[KEYMAP[e.key]] = false; });
 window.addEventListener("blur", () => Object.keys(keys).forEach(k => keys[k] = false));
@@ -720,6 +801,7 @@ document.querySelectorAll("#pad button").forEach(b => {
   ["pointerup","pointercancel","lostpointercapture"].forEach(ev => b.addEventListener(ev, () => keys[d] = false));
 });
 $("#actBtn").onclick = () => interact();
+$("#bagBtn").onclick = () => openBag();
 
 /* ------------------------------------------------------------------
    8. 말풍선 · 수첩
@@ -749,6 +831,9 @@ function renderSide(){
   $("#stCharm").textContent = S.charms;
   if($("#whoLine")) $("#whoLine").textContent = S.who ? `${S.who.grade}학년 ${S.who.cls}반 ${S.who.num}번 ${S.who.name}` : "";
   if($("#hud")) $("#hud").innerHTML = `<img src="assets/obj_charm.png" alt="">×${S.charms}`;
+  $("#bagBtn").innerHTML = `🎒 가방 <b>${S.bag.length}</b>`;
+  $("#bagList").innerHTML = S.bag.length ? S.bag.map(id => `<button class="chip" title="${esc(ITEMS[id].desc)}">${ITEMS[id].icon} ${esc(ITEMS[id].name)}</button>`).join("") : `<span class="say" style="font-size:13px">비어 있어요</span>`;
+  $("#bagList").querySelectorAll("button").forEach(b => b.onclick = () => openBag());
   $("#teacherBadge").hidden = !TEACHER;
   $("#route").innerHTML = CHAIN.map((id,i) => {
     const cls = isCleared(id) ? "done" : id===nx ? "next" : "lock";
@@ -757,16 +842,17 @@ function renderSide(){
   }).join("") + `<li class="${S.escaped?"done":!nx?"next":"lock"}"><i>${S.escaped?"✓":!nx?"▶":"·"}</i><span>동편 계단 <small>학교 밖으로</small></span><small>3층</small></li>`;
   $("#charms").innerHTML = S.charms ? Array.from({length:S.charms},()=>`<span class="charm" title="부적"></span>`).join("") : `<span class="say" style="font-size:13px">아직 없어요</span>`;
   const sides = Object.keys(ROOMS).filter(k => ROOMS[k].kind !== "class");
-  $("#log").innerHTML = `<span>스스로 푼 문제 ${S.qSelf} · 도움 받은 문제 ${S.qHelp}</span><span>귀신 웃음 ${S.wrong}번 · 부적 사용 ${S.used}장</span><span>둘러본 특별실·화장실 ${sides.filter(isCleared).length}/${sides.length}</span><span>찾은 교표 ${Object.keys(S.logos).length}/${Object.keys(ROOMS).length + 2}</span>`;
+  $("#log").innerHTML = `<span>스스로 푼 문제 ${S.qSelf} · 도움 받은 문제 ${S.qHelp}</span><span>귀신 웃음 ${S.wrong}번 · 부적 사용 ${S.used}장</span><span>얻은 물건 ${S.items}개</span><span>둘러본 특별실·화장실 ${sides.filter(isCleared).length}/${sides.length}</span><span>찾은 교표 ${Object.keys(S.logos).length}/${Object.keys(ROOMS).length + 2}</span>`;
   renderPlaces();
 }
 function renderPlaces(){
   if(!SC) return;
-  const list = SC.objs.filter(o => ["room","station","exit","stairC","stairE"].includes(o.kind));
+  const list = SC.objs.filter(o => ["room","station","exit","stairC","stairE"].includes(o.kind) || (o.kind === "puzzle" && !pzGated(SC.room, o.fx)));
   $("#places").innerHTML = list.map((o,i) => {
     let s = "";
     if(o.kind==="room") s = isCleared(o.room) ? "done" : !roomOpen(o.room) ? "lock" : o.room===nextRequired() ? "next" : "";
     if(o.kind==="station") s = S.solved[SC.room+"."+o.key] ? "done" : "next";
+    if(o.kind==="puzzle") s = pzDone(SC.room, o.fx) ? "done" : "pz";
     const name = o.kind==="room" ? ROOMS[o.room].name : o.kind==="stairC" ? o.label : o.kind==="stairE" ? (o.exit ? "동편 계단(탈출)" : "동편 계단(3층으로)") : o.label;
     return `<button data-i="${i}" data-s="${s}">${name}${s==="done"?" ✓":s==="lock"?" (잠김)":""}</button>`;
   }).join("");
@@ -784,14 +870,10 @@ $("#overlay").addEventListener("click", e => { if(e.target.id==="overlay" && S.s
 function ghostGuide(){
   const n = nextRequired();
   if(!n) return "2-1반까지 다 풀었잖아! 3층 복도 왼쪽 끝 동편 계단으로 가. 문 열어 놨어.";
-  if(!SC.hall && SC.room === n && riddlePending(n)) return `문에 걸린 자물쇠 수수께끼가 남았어. "${RIDDLES[n].clue}" …이건 교표 뒷면에 적힌 말이야.`;
-  if(!SC.hall && SC.room === n){
-    const left = Object.keys(ROOMS[n].stations).filter(k => !S.solved[n+"."+k]).map(k => ROOMS[n].stations[k].name);
-    return `이 교실에서 ${left.join(", ")} 문제가 남았어. 노란 테두리가 깜빡이는 곳을 찾아봐.`;
-  }
+  if(!SC.hall && SC.room === n) return roomHint(n, true);
   const fl = ["c22","c21"].includes(n) ? "3층" : "4층";
   const where = (SC.id === "F4" && fl === "3층") ? " 복도 왼쪽 끝 동편 계단으로 내려가면 돼." : "";
-  return `다음은 ${fl} ${ROOMS[n].name}(${ROOMS[n].unit})야.${where} 문 위에 ! 표시가 뜬 교실로 들어와.`;
+  return `다음은 ${fl} ${ROOMS[n].name}야. 이번 교실은 '${ROOMS[n].unit}'.${where} 문 위에 ! 표시가 뜬 교실로 들어와.`;
 }
 function openGhost(){
   const lines = [fmt("왔구나, {call}. 뭐가 궁금해?"), fmt("{name}, 또 왔네?"), "킥킥, 나한테 말을 거는 애는 처음이야.", "무서워? 문제만 풀면 아무 일도 없어."];
@@ -813,12 +895,12 @@ function openGhost(){
 function ghostQuiz(say){
   const earned = CHAIN.filter(isCleared).length;
   const pool = [];
-  for(const [rid,R] of Object.entries(ROOMS)) for(const [k,st] of Object.entries(R.stations)) if(S.solved[rid+"."+k]) (st.qs || []).forEach(q => pool.push(q));
+  for(const [rid,R] of Object.entries(ROOMS)) for(const k of Object.keys(R.stations)) if(S.solved[rid+"."+k]){ const pl = planOf(rid, k); if(pl.mode === "q") pl.ids.forEach(id => pool.push(Q(id))); }
   if(!pool.length) return say("아직 푼 문제가 없잖아. 칠판 문제부터 풀고 와.");
   const q = pool[Math.floor(Math.random()*pool.length)], order = shuffle(q.opts.map((_,k)=>k));
   say("좋아, 아까 푼 거야. 기억나?");
   $("#gopts").hidden = true;
-  $("#gquiz").innerHTML = `<div class="word">${q.w}</div><p class="ctx">${esc(q.ask)}</p>
+  $("#gquiz").innerHTML = `<p class="ctx">${domTag(q.d)}</p><div class="word">${q.w}</div><p class="ctx">${esc(q.ask)}</p>
     <div class="choices">${order.map(k=>`<button class="choice ${TEACHER&&k===0?"key":""}" data-k="${k}">${esc(q.opts[k])}</button>`).join("")}</div><div id="gfb"></div>`;
   document.querySelectorAll("#gquiz .choice").forEach(b => b.onclick = () => {
     const ok = +b.dataset.k === 0;
@@ -829,18 +911,34 @@ function ghostQuiz(say){
     $("#gdone").onclick = hide; $("#gdone").focus();
   });
 }
+function stationInfo(roomId, key){
+  const R = ROOMS[roomId], st = R.stations[key], pl = planOf(roomId, key);
+  if(pl.mode === "match") return Object.assign({}, st, MATCH_BANK[pl.set], { mode:"match" });
+  if(pl.mode === "type") return Object.assign({}, st, { mode:"type", items: pl.ids.map(TQ) });
+  return Object.assign({}, st, { mode:"q", qs: (pl.ids || []).map(Q) });
+}
+function rewardLine(roomId, key){
+  const R = ROOMS[roomId], st = R.stations[key];
+  if(R.kind === "class" && st.reward){ const it = ITEMS[st.reward]; return `<p class="reward">다 풀면 얻는 것: <b>${it.icon} ${esc(it.name)}</b></p>`; }
+  if(R.kind === "side") return `<p class="reward">다 풀면 얻는 것: <b>부적 1장</b></p>`;
+  return "";
+}
 function openStation(roomId, key){
-  const R = ROOMS[roomId], st = R.stations[key], done = !!S.solved[roomId+"."+key];
+  const R = ROOMS[roomId], done = !!S.solved[roomId+"."+key];
   if(R.kind === "rest"){
+    const st = R.stations[key];
     show(`<span class="eyebrow">${R.name}</span><h3>${st.name}</h3><div class="chalk" style="background:#2c3550;border-color:#8a93a8">${esc(st.note)}</div>
-
       <div class="btnrow"><button class="btn" id="ok">닫기</button></div>`, () => $("#ok").onclick = hide);
     if(!done){ S.solved[roomId+"."+key] = true; S.cleared[roomId] = true; save(); renderSide(); }
     return;
   }
-  show(`<span class="eyebrow">${R.name} · ${R.unit}</span><h3>${st.name}</h3>
+  const st = stationInfo(roomId, key);
+  const doms = st.mode === "match" ? domTag(st.d) : [...new Set((st.qs || st.items).map(q => q.d))].map(domTag).join(" ");
+  show(`<span class="eyebrow">${R.name} · ${esc(st.name)}</span><h3>${esc(st.name)}</h3>
     <div class="chalk">${esc(st.note)}</div>
-    <p class="say">${done ? "이미 푼 문제예요. 복습 삼아 다시 풀어 볼 수 있어요(기록에는 남지 않아요)." : (st.mode === "match" ? `짝 지우기: ${esc(st.rule)}. 패를 모두 지우면 이곳이 풀려요.` : st.mode === "type" ? `받아쓰기: 낱말 ${st.items.length}개를 직접 적으면 이곳이 풀려요.` : `문제 ${st.qs.length}개를 모두 맞히면 이곳이 풀려요.`)}</p>
+    <p class="say">${done ? "이미 푼 문제예요. 복습 삼아 다시 풀어 볼 수 있어요(기록에는 남지 않아요)." : (st.mode === "match" ? `짝 지우기: ${esc(st.rule)}. 패를 모두 지우면 이곳이 풀려요.` : st.mode === "type" ? `받아쓰기: ${st.items.length}문제의 답을 직접 적으면 이곳이 풀려요.` : `문제 ${st.qs.length}개를 모두 맞히면 이곳이 풀려요.`)}</p>
+    <p class="ctx" style="text-align:left">나오는 영역: ${doms}</p>
+    ${done ? "" : rewardLine(roomId, key)}
     <div class="btnrow"><button class="btn" id="go">${done?"다시 풀기":"문제 풀기"}</button><button class="btn ghost" id="x">닫기</button></div>`,
     () => { $("#go").onclick = () => st.mode === "match" ? matchGame(roomId, key) : st.mode === "type" ? typeGame(roomId, key, 0, 0) : question(roomId, key, 0); $("#x").onclick = hide; });
 }
@@ -879,9 +977,9 @@ function openDesk(j){
   () => { $("#dgo").onclick = () => oxGame(rid, key); $("#dx").onclick = hide; });
 }
 function oxGame(rid, key){
-  const qs = shuffle(OX_BANK[rid] || []).slice(0, 3); let i = 0, right = 0;
+  const qs = shuffle(["ph","wd","st"].map(d => { const a = OX_BANK[d]; return a[Math.floor(Math.random()*a.length)].concat(d); })); let i = 0, right = 0;
   const step = () => { const q = qs[i];
-    show(`${dots(i, qs.length)}<span class="eyebrow">숨은 OX 게임 · ${i+1}/${qs.length}</span><h3>맞으면 O, 틀리면 X</h3>
+    show(`${dots(i, qs.length)}<span class="eyebrow">숨은 OX 게임 · ${i+1}/${qs.length} · ${DOMAIN[q[3]]}</span><h3>맞으면 O, 틀리면 X</h3>
       <div class="chalk ox">${esc(q[0])}</div>
       <div class="oxrow"><button class="oxb o" data-v="1" aria-label="O, 맞다">O</button><button class="oxb x" data-v="0" aria-label="X, 틀리다">X</button></div><div id="fb"></div>`,
     () => document.querySelectorAll(".oxb").forEach(b => b.onclick = () => {
@@ -904,10 +1002,10 @@ function oxGame(rid, key){
 }
 
 function question(roomId, key, i){
-  const R = ROOMS[roomId], st = R.stations[key], q = st.qs[i], replay = !!S.solved[roomId+"."+key];
+  const R = ROOMS[roomId], st = stationInfo(roomId, key), q = st.qs[i], replay = !!S.solved[roomId+"."+key];
   const order = shuffle(q.opts.map((_,k)=>k));
   show(`${dots(i, st.qs.length)}<span class="eyebrow">${R.name} · ${st.name} · ${i+1}/${st.qs.length}</span>
-    <div class="word">${q.w}</div><p class="ctx">${esc(q.ask)}</p>
+    <p class="ctx">${domTag(q.d)}</p><div class="word">${q.w}</div><p class="ctx">${esc(q.ask)}</p>
     <div class="choices">${order.map(k=>`<button class="choice ${TEACHER&&k===0?"key":""}" data-k="${k}">${esc(q.opts[k])}</button>`).join("")}</div>
     <div id="fb"></div>
     <div class="btnrow" id="ctl">${`<button class="btn charmbtn" id="hintB">부적으로 힌트 보기 (${replay||TEACHER?"무료":"보유 "+S.charms+"장"})</button>`}<button class="btn ghost" id="later">나중에 하기</button></div>`);
@@ -940,44 +1038,61 @@ function clearRoom(roomId){
   if(R.kind === "class") return roomId === "c23" ? STORY.floorDown : roomId === "c21" ? "…다 풀었네. 동편 계단 문이 열렸어. 교실을 나가서 복도 끝으로 가." : STORY.roomClear;
   return `${R.name} 문제를 다 풀었어. 제법인데?`;
 }
-/* 문 자물쇠 수수께끼 */
+/* 잠긴 교실 문: 열쇠(2-1반은 열쇠 + 낱말 자물쇠) */
+function openDoor(rid){
+  if(!hasItem("key")) return talk(`문이 잠겨 있어. 교실 열쇠가 있어야 해. ${roomHint(rid)}`);
+  if(needsRiddleAtDoor(rid) && !S.riddle[rid]) return openRiddle(rid, "door");
+  unlockDoor(rid);
+}
+function unlockDoor(rid){
+  removeItem("key"); const msg = clearRoom(rid); save(); renderSide();
+  show(`<span class="eyebrow">${ROOMS[rid].name} · 나가는 문</span><h3>철컥! 문이 열렸어요</h3>
+    <div class="getcharm"><span style="font-size:40px">🔑</span><span>교실 열쇠를 꽂아 돌렸어요.</span></div>
+    <div class="gline">${esc(fmt(msg))}</div>
+    <div class="btnrow"><button class="btn hot" id="dout">복도로 나가기</button><button class="btn ghost" id="dstay">교실 더 둘러보기</button></div>`,
+  () => { $("#dout").onclick = () => { hide(); const h = hallFor(rid); enter(h.floor, [h.o.door[0], h.o.door[1]+1], "down"); }; $("#dstay").onclick = hide; });
+}
+/* 수수께끼 자물쇠 — mode "box": 가방 속 자물쇠 상자, "door": 2-1반 문 */
 const norm = v => String(v).replace(/[\s.,!?~'"“”‘’()\[\]]/g, "");
-function openRiddle(id){
-  const Q = RIDDLES[id], R = ROOMS[id];
-  const dial = Q.type === "dial", digits = dial ? Array(Q.answer.length).fill(0) : null;
-  show(`<span class="eyebrow">${R.name} · 문 자물쇠</span><h3>${esc(Q.title)}</h3>
-    <div class="chalk riddle">${esc(Q.text).replace(/\n/g,"<br>")}</div>
-    ${dial ? `<div class="dials" style="grid-template-columns:repeat(${digits.length},minmax(0,1fr))">${digits.map((d,k)=>`<div class="dial"><span>${esc(Q.labels[k])}</span><button data-d="${k}" data-v="1" aria-label="${esc(Q.labels[k])} 올리기">▲</button><span class="n" id="dn${k}">0</span><button data-d="${k}" data-v="-1" aria-label="${esc(Q.labels[k])} 내리기">▼</button></div>`).join("")}</div>`
+function openRiddle(id, mode){
+  const RQ = RIDDLES[S.rid[id]], R = ROOMS[id];
+  const dial = RQ.type === "dial", digits = dial ? Array(RQ.answer.length).fill(0) : null;
+  const where = mode === "box" ? "자물쇠 상자" : "문 자물쇠";
+  show(`<span class="eyebrow">${R.name} · ${where}</span><h3>${esc(RQ.title)}</h3>
+    <div class="chalk riddle">${esc(RQ.text).replace(/\n/g,"<br>")}</div>
+    ${dial ? `<div class="dials" style="grid-template-columns:repeat(${digits.length},minmax(0,1fr))">${digits.map((d,k)=>`<div class="dial"><span>${esc(RQ.labels[k])}</span><button data-d="${k}" data-v="1" aria-label="${esc(RQ.labels[k])} 올리기">▲</button><span class="n" id="dn${k}">0</span><button data-d="${k}" data-v="-1" aria-label="${esc(RQ.labels[k])} 내리기">▼</button></div>`).join("")}</div>`
       : `<label class="answer">답 적기<input type="text" id="rin" autocomplete="off" placeholder="예: 두세 글자 낱말"></label>`}
-    <div id="rfb">${TEACHER ? `<p class="hint">교사용 정답: ${dial ? Q.answer : Q.answer.join(", ")}</p>` : ""}</div>
+    <div id="rfb">${TEACHER ? `<p class="hint">교사용 정답: ${dial ? RQ.answer : RQ.answer.join(", ")}</p>` : ""}</div>
     <div class="btnrow"><button class="btn hot" id="rgo">자물쇠 열기</button><button class="btn charmbtn" id="rhint">부적으로 힌트 보기 (${TEACHER?"무료":"보유 "+S.charms+"장"})</button><button class="btn ghost" id="rx">나중에 하기</button></div>`,
   () => {
     if(dial) document.querySelectorAll(".dial button").forEach(b => b.onclick = () => { const k = +b.dataset.d; digits[k] = (digits[k] + (+b.dataset.v) + 10) % 10; $("#dn"+k).textContent = digits[k]; });
     else { $("#rin").addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); $("#rgo").click(); } }); setTimeout(() => $("#rin").focus(), 50); }
     $("#rx").onclick = hide;
-    $("#rhint").onclick = () => charmHint(false, "#rfb", Q.hint, () => { S.rtries[id] = Math.max(S.rtries[id]||0, 3); save(); });
+    $("#rhint").onclick = () => charmHint(false, "#rfb", RQ.hint, () => { S.rtries[id] = Math.max(S.rtries[id]||0, 3); save(); });
     $("#rgo").onclick = () => {
       const val = dial ? digits.join("") : norm($("#rin").value);
-      const ok = dial ? val === Q.answer : Q.answer.some(a => val === norm(a) || val.replace(/(이야|이다|입니다|야|다)$/,"") === norm(a));
+      const ok = dial ? val === RQ.answer : RQ.answer.some(a => val === norm(a) || val.replace(/(이야|이다|입니다|야|다)$/,"") === norm(a));
       if(ok){
         const helped = (S.rtries[id]||0) >= 3; S.riddle[id] = true; helped ? S.qHelp++ : S.qSelf++;
-        const msg = clearRoom(id); save();
-        $("#rfb").innerHTML = `<div class="fb ok"><span class="tag">철컥! 자물쇠가 열렸어요</span><span>${esc(Q.why)}</span></div>`;
-        document.querySelector("#sheet .btnrow").innerHTML = `<button class="btn hot" id="rdone">문 열고 나가기</button>`;
-        $("#rdone").onclick = () => { hide(); setTimeout(() => talk(msg), 150); };
+        if(mode === "box"){ removeItem("lockbox"); addItem("key"); }
+        save();
+        $("#rfb").innerHTML = `<div class="fb ok"><span class="tag">철컥! 자물쇠가 열렸어요</span><span>${esc(RQ.why)}</span></div>`
+          + (mode === "box" ? `<div class="getcharm"><span style="font-size:40px">🔑</span><span>상자 안에 교실 열쇠가 들어 있어요! 나가는 문으로 가져가세요.</span></div>` : "");
+        document.querySelector("#sheet .btnrow").innerHTML = `<button class="btn hot" id="rdone">${mode === "box" ? "열쇠 챙기기" : "문 열기"}</button>`;
+        $("#rdone").onclick = () => mode === "box" ? (hide(), setTimeout(() => talk(roomHint(id)), 150)) : unlockDoor(id);
         $("#rdone").focus(); return;
       }
       if(!dial && !val){ $("#rfb").innerHTML = `<p class="hint">답을 적어 주세요.</p>`; return; }
       S.rtries[id] = (S.rtries[id]||0) + 1; S.wrong++; flicker = .1; save();
       let msg = wrongLine();
-      if(dial){ const right = [...val].filter((d,k) => d === Q.answer[k]).length; msg += ` (자물쇠 ${val.length}칸 가운데 ${right}칸이 딸깍 맞물렸어.)`; }
-      $("#rfb").innerHTML = `<div class="gline">${esc(msg)}</div>${S.rtries[id] >= 3 ? `<p class="hint">세 번 틀려서 귀신이 힌트를 흘렸어요: ${esc(Q.hint)}</p>` : ""}`;
+      if(dial){ const right = [...val].filter((d,k) => d === RQ.answer[k]).length; msg += ` (자물쇠 ${val.length}칸 가운데 ${right}칸이 딸깍 맞물렸어.)`; }
+      $("#rfb").innerHTML = `<div class="gline">${esc(msg)}</div>${S.rtries[id] >= 3 ? `<p class="hint">세 번 틀려서 귀신이 힌트를 흘렸어요: ${esc(RQ.hint)}</p><p class="hint">교표 뒷면 단서: ${esc(RQ.clue)}</p>` : ""}`;
     };
   });
 }
 /* ---------- 짝 지우기(사천성) ---------- */
 function matchGame(roomId, key){
-  const R = ROOMS[roomId], st = R.stations[key], replay = !!S.solved[roomId+"."+key];
+  const R = ROOMS[roomId], st = stationInfo(roomId, key), replay = !!S.solved[roomId+"."+key];
   const W = st.cols, H = st.rows, DX = [1,-1,0,0], DY = [0,0,1,-1];
   const tiles = []; for(const [g,arr] of Object.entries(st.groups)) arr.forEach(t => tiles.push({ t, g }));
   let grid = [], sel = null, hints = 0, misses = 0, left = tiles.length, busy = false;
@@ -1007,7 +1122,7 @@ function matchGame(roomId, key){
     return null;
   }
   deal(tiles); for(let n=0; n<60 && !findPair(); n++) reshuffle();
-  show(`<span class="eyebrow">${R.name} · ${esc(st.name)} · 짝 지우기</span>
+  show(`<span class="eyebrow">${R.name} · ${esc(st.name)} · 짝 지우기 · ${DOMAIN[st.d]}</span>
     <h3>${esc(st.rule)}</h3>
     <p class="say">같은 무리의 패 두 개를 차례로 누르세요. 두 패를 잇는 선은 <b>두 번까지만 꺾일 수 있고</b>, 다른 패를 넘어갈 수 없어요. 판 바깥 테두리로는 지나갈 수 있어요.</p>
     <div class="mwrap"><div class="mgrid" id="mgrid" style="grid-template-columns:14px repeat(${W},minmax(0,1fr)) 14px"></div><svg class="mline" id="mline"></svg></div>
@@ -1074,10 +1189,10 @@ function matchGame(roomId, key){
 
 /* ---------- 받아쓰기(타이핑) ---------- */
 function typeGame(roomId, key, i, helpedSoFar){
-  const R = ROOMS[roomId], st = R.stations[key], it = st.items[i], replay = !!S.solved[roomId+"."+key];
+  const R = ROOMS[roomId], st = stationInfo(roomId, key), it = st.items[i], replay = !!S.solved[roomId+"."+key];
   let w = 0, helped = false;
   show(`${dots(i, st.items.length)}<span class="eyebrow">${R.name} · ${esc(st.name)} · 받아쓰기 ${i+1}/${st.items.length}</span>
-    <div class="word">${it.w}</div><p class="ctx">${esc(it.ask || st.ask)}</p>
+    <p class="ctx">${domTag(it.d)}</p><div class="word">${it.w}</div><p class="ctx">${esc(it.ask || st.ask)}</p>
     <label class="answer">답 적기<input type="text" id="tin" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
     <div id="fb">${TEACHER ? `<p class="hint">교사용 정답: ${it.answer.join(", ")}</p>` : ""}</div>
     <div class="btnrow" id="ctl"><button class="btn hot" id="tgo">확인</button>${`<button class="btn charmbtn" id="hintB">부적으로 힌트 보기 (${replay||TEACHER?"무료":"보유 "+S.charms+"장"})</button>`}<button class="btn ghost" id="later">나중에 하기</button></div>`,
@@ -1111,18 +1226,100 @@ function typeGame(roomId, key, i, helpedSoFar){
 }
 
 function stationDone(roomId, key, replay){
-  const R = ROOMS[roomId];
-  if(!replay){ S.solved[roomId+"."+key] = true; }
+  const R = ROOMS[roomId], st = R.stations[key];
+  if(replay){ hide(); return; }
+  S.solved[roomId+"."+key] = true;
   const allDone = Object.keys(R.stations).every(k => S.solved[roomId+"."+k]);
-  let msg = "";
-  if(!replay && allDone && !isCleared(roomId)){
-    if(R.kind === "class" && RIDDLES[roomId] && !S.riddle[roomId]){
-      msg = "세 곳 다 풀었네. 그런데 문에 자물쇠가 걸려 있지? 문으로 가서 수수께끼를 풀어 봐. 막히면 벽의 교표를 살펴봐.";
-    } else msg = clearRoom(roomId);
+  if(R.kind === "class" && st.reward && !S.got[roomId+"."+key]){
+    S.got[roomId+"."+key] = true; addItem(st.reward);
+    const it = ITEMS[st.reward];
+    show(`<span class="eyebrow">${R.name} · ${esc(st.name)}</span><h3>물건을 얻었어요!</h3>
+      <div class="getcharm"><span style="font-size:44px;animation:charmIn .6s ease-out">${it.icon}</span><span>${esc(it.name)}<br><small style="font-weight:400;color:var(--fg)">${esc(it.desc)}</small></span></div>
+      <p class="say">물건은 가방(🎒)에 들어가요. 보라색 <b>?</b> 표시가 뜬 곳에 쓰거나, 가방에서 두세 개를 골라 합칠 수 있어요.</p>
+      <div class="btnrow"><button class="btn hot" id="rok">가방에 넣기</button><button class="btn ghost" id="rbag">가방 열어 보기</button></div>`,
+    () => { $("#rok").onclick = () => { hide(); setTimeout(() => talk(roomHint(roomId)), 200); }; $("#rbag").onclick = openBag; });
+    return;
+  }
+  if(R.kind === "side" && allDone && !isCleared(roomId)){
+    S.cleared[roomId] = true; S.charms++; save(); renderSide();
+    show(`<span class="eyebrow">${R.name}</span><h3>부적을 얻었어요!</h3>
+      <div class="getcharm"><img src="assets/obj_charm.png" alt="부적"><span>부적 +1 · 지금 ${S.charms}장</span></div>
+      <div class="btnrow"><button class="btn" id="rok">닫기</button></div>`, () => $("#rok").onclick = hide);
+    return;
   }
   save(); hide();
-  if(msg) setTimeout(() => talk(msg), 200);
-  else if(!replay){ const left = Object.keys(R.stations).filter(k => !S.solved[roomId+"."+k]).map(k => R.stations[k].name); if(left.length) setTimeout(() => talk(`남은 곳: ${left.join(", ")}`, "탈출 수첩"), 200); }
+}
+
+/* ---------- 가방: 물건 보기 · 합치기 · 상자 열기 ---------- */
+function openBag(msg){
+  if(!$("#overlay").hidden && !msg && $("#bagSheet")) return;
+  const sel = new Set();
+  const render = note => {
+    show(`<div id="bagSheet"></div><span class="eyebrow">가방 · 물건 ${S.bag.length}개</span><h3>🎒 가방</h3>
+      <p class="say">물건을 눌러 고른 뒤 <b>합치기</b>를 누르면 두세 개를 합칠 수 있어요. 물건을 쓰려면 보라색 <b>?</b> 표시가 뜬 곳으로 가세요.</p>
+      <div class="bag">${S.bag.length ? S.bag.map((id,k) => `<div class="item ${sel.has(k)?"on":""}" data-k="${k}" role="button" tabindex="0" aria-pressed="${sel.has(k)}"><span class="ic">${ITEMS[id].icon}</span><span><b>${esc(ITEMS[id].name)}</b><small>${esc(ITEMS[id].desc)}</small></span>${id === "lockbox" ? `<button class="btn hot sm" data-open="1">열어 보기</button>` : ""}</div>`).join("") : `<p class="say">가방이 비어 있어요.</p>`}</div>
+      <div id="bfb">${note || ""}</div>
+      <div class="btnrow"><button class="btn hot" id="bmix" ${sel.size >= 2 ? "" : "disabled"}>고른 물건 합치기 (${sel.size}개)</button><button class="btn ghost" id="bx">닫기</button></div>`,
+    () => {
+      $("#bx").onclick = hide;
+      document.querySelectorAll(".bag .item").forEach(el => {
+        const k = +el.dataset.k, tog = () => { sel.has(k) ? sel.delete(k) : sel.add(k); render(); };
+        el.onclick = e => { if(e.target.dataset.open) return; tog(); };
+        el.onkeydown = e => { if(e.key === "Enter" || e.key === " "){ e.preventDefault(); tog(); } };
+      });
+      const ob = document.querySelector("[data-open]"); if(ob) ob.onclick = () => SC.room ? openRiddle(SC.room, "box") : null;
+      $("#bmix").onclick = () => combine([...sel].map(k => S.bag[k]));
+    });
+  };
+  const combine = ids => {
+    const r = allRecipes().find(r => r.in.length === ids.length && r.in.every(i => ids.includes(i)));
+    if(r){
+      r.in.forEach(removeItem); addItem(r.out); sel.clear();
+      const it = ITEMS[r.out];
+      return render(`<div class="getcharm"><span style="font-size:40px">${it.icon}</span><span>${esc(it.name)} 완성!<br><small style="font-weight:400;color:var(--fg)">${esc(r.say)}</small></span></div>`);
+    }
+    const part = allRecipes().find(r => ids.every(i => r.in.includes(i)));
+    if(!TEACHER){ S.wrong++; save(); }
+    render(`<div class="gline">${esc(part ? (part.part || "이 조합이 맞는 것 같은데… 하나가 더 있어야 할 것 같아.") : "음… 이 물건들은 합쳐지지 않아. 다른 조합을 생각해 봐.")}</div>`);
+  };
+  render(msg);
+}
+
+/* ---------- 물건을 쓰는 곳(퍼즐) ---------- */
+function openPuzzle(rid, fx){
+  const P = ROOMS[rid].puzzles[fx];
+  if(pzGated(rid, fx)) return talk(P.before || "특별한 건 없어 보인다.", "살펴보니");
+  if(pzDone(rid, fx)) return talk(P.done || "이제 여기엔 볼일이 없다.", "살펴보니");
+  const k = pzKey(rid, fx), stage = pzStage(rid, fx), step = P.steps[stage];
+  const render = note => show(`<span class="eyebrow">${ROOMS[rid].name} · 손이 닿지 않는 곳 · ${stage+1}/${P.steps.length}단계</span><h3>${esc(P.name)}</h3>
+    <div class="chalk" style="background:#2b2340;border-color:#6b5a8e">${esc(step.look)}</div>
+    <p class="say">가방에서 쓸 물건을 고르세요.</p>
+    <div class="usebag">${S.bag.length ? S.bag.map(id => `<button class="choice ${TEACHER && needs(step).includes(id) ? "key" : ""}" data-id="${id}">${ITEMS[id].icon} ${esc(ITEMS[id].name)}</button>`).join("") : `<p class="say">가방이 비어 있어요. 노란 ! 표시에서 문제를 풀어 물건을 얻으세요.</p>`}</div>
+    <div id="pfb">${note || ""}${TEACHER ? `<p class="hint">교사용: 필요한 물건 — ${needs(step).map(i => ITEMS[i].name).join(" 또는 ")}</p>` : ""}</div>
+    <div class="btnrow" id="pctl"><button class="btn charmbtn" id="hintB">부적으로 힌트 보기 (${TEACHER?"무료":"보유 "+S.charms+"장"})</button><button class="btn ghost" id="pbag">가방 열기</button><button class="btn ghost" id="px">닫기</button></div>`,
+  () => {
+    $("#px").onclick = hide; $("#pbag").onclick = () => openBag();
+    $("#hintB").onclick = () => charmHint(false, "#pfb", step.tip);
+    document.querySelectorAll(".usebag .choice").forEach(b => b.onclick = () => use(b.dataset.id));
+  });
+  const use = id => {
+    if(needs(step).includes(id)){
+      removeItem(id); S.pz[k] = stage + 1; if(step.give) addItem(step.give); save();
+      const more = !pzDone(rid, fx);
+      show(`<span class="eyebrow">${ROOMS[rid].name} · ${esc(P.name)}</span><h3>${more ? "됐다!" : "해냈어요!"}</h3>
+        <div class="fb ok"><span>${esc(step.ok)}</span></div>
+        ${step.give ? `<div class="getcharm"><span style="font-size:40px">${ITEMS[step.give].icon}</span><span>${esc(ITEMS[step.give].name)}을(를) 얻었어요</span></div>` : ""}
+        <div class="btnrow"><button class="btn hot" id="pnx">${more ? "계속 살펴보기" : "닫기"}</button></div>`,
+      () => $("#pnx").onclick = () => more ? openPuzzle(rid, fx) : (hide(), setTimeout(() => talk(roomHint(rid)), 200)));
+      return;
+    }
+    S.ptries[k] = (S.ptries[k]||0) + 1; if(!TEACHER){ S.wrong++; save(); }
+    const part = allRecipes().find(r => r.in.includes(id) && needs(step).includes(r.out));
+    let line = part ? `${ITEMS[id].name}만으로는 안 될 것 같아. 다른 물건과 합쳐 볼까?` : (ITEMS[id] ? `${ITEMS[id].name}은(는) 여기 써도 소용이 없을 것 같다.` : "");
+    if(S.ptries[k] >= 3) line += ` 귀신이 속삭인다: "${step.tip}"`;
+    render(`<div class="gline">${esc(line)}</div>`);
+  };
+  render();
 }
 
 /* ------------------------------------------------------------------
@@ -1162,10 +1359,11 @@ function profile(){
 function intro(){
   show(`<img class="hero" src="assets/title.jpg" alt="밤의 학교 복도에서 손전등을 든 학생과 손을 흔드는 귀신"><span class="eyebrow">밤 10시 · 본관 4층</span><h3>야자 탈출</h3>
     <div class="story">${STORY.intro.map(l=>`<p>${esc(fmt(l))}</p>`).join("")}</div>
-    <p class="say">방향키나 WASD로 움직이고, E로 살펴요. 휴대폰에서는 화면 방향키를 쓰거나 가고 싶은 곳을 누르세요. 노란 <b>!</b>는 아직 풀지 않은 곳, 문 위에 ?가 뜬 곳은 들러 볼 수 있는 특별실이에요.</p>
-    <p class="say" style="font-size:14px">부적은 막힐 때 힌트를 보는 아이템이에요. 한 장을 가지고 시작하고, 교실마다 책상 하나의 서랍에 숨은 OX 게임으로 한 장씩 더 얻을 수 있어요. 틀려도 실패하지 않아요.</p>
+    <p class="say">방향키나 WASD로 움직이고, E로 살펴요. 휴대폰에서는 화면 방향키를 쓰거나 가고 싶은 곳을 누르세요. 복도에서 문 위에 ?가 뜬 곳은 들러 볼 수 있는 특별실이에요.</p>
+    <p class="say" style="font-size:14px">노란 <b>!</b>에서 문제를 풀면 물건을 얻어요. 문제는 음운·단어·문장에서 무작위로 나와요. 물건은 가방(🎒, B 키)에 모이고, 보라색 <b>?</b>가 뜬 곳에 쓰거나 두세 개를 합칠 수 있어요. 손이 닿지 않는 곳의 자물쇠 상자를 꺼내 수수께끼를 풀면 교실 열쇠가 나와요.</p>
+    <p class="say" style="font-size:14px">부적은 막힐 때 힌트를 보는 아이템이에요. 한 장을 가지고 시작하고, 교실마다 책상 하나의 서랍에 숨은 OX 게임과 특별실 덤 문제로 더 얻을 수 있어요. 틀려도 실패하지 않아요.</p>
     <div class="btnrow"><button class="btn hot" id="go">교실 둘러보기</button></div>`,
-    () => $("#go").onclick = () => { S.started = true; S.t0 = Date.now(); S.met.c27 = true; save(); hide(); setTimeout(() => talk(STORY.ghostIntro), 300); });
+    () => $("#go").onclick = () => { S.started = true; S.t0 = Date.now(); S.met.c27 = true; planRoom("c27"); save(); hide(); setTimeout(() => talk(STORY.ghostIntro), 300); });
 }
 function mmss(ms){ const s=Math.max(0,Math.floor(ms/1000)); return `${String(Math.floor(s/60)).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`; }
 function finish(){
@@ -1182,6 +1380,7 @@ function finish(){
         <dt>도움 받은 문제</dt><dd>${S.qHelp}개</dd>
         <dt>귀신 웃음</dt><dd>${S.wrong}번</dd>
         <dt>부적 사용</dt><dd>${S.used}장</dd>
+        <dt>얻은 물건</dt><dd>${S.items}개</dd>
         <dt>찾은 교표</dt><dd>${Object.keys(S.logos).length}/${Object.keys(ROOMS).length + 2}</dd>
         <dt>걸린 시간</dt><dd>${mmss((S.tEnd||Date.now())-S.t0)}</dd>
       </dl>
@@ -1193,7 +1392,7 @@ function finish(){
 }
 $("#resetBtn").onclick = () => show(`<h3>처음부터 다시 할까요?</h3><p class="say">이 기기에 저장된 진행 기록이 모두 지워져요.</p>
   <div class="btnrow"><button class="btn hot" id="yes">기록 지우고 다시 시작</button><button class="btn ghost" id="no">취소</button></div>`,
-  () => { $("#yes").onclick = () => { try{ localStorage.removeItem(KEY); }catch(e){} S = fresh(); enter("c27",null,"up"); profile(); }; $("#no").onclick = hide; });
+  () => { $("#yes").onclick = () => { try{ localStorage.removeItem(KEY); }catch(e){} S = fresh(); setup(); enter("c27",null,"up"); profile(); }; $("#no").onclick = hide; });
 
 setInterval(() => { if(S.started) $("#stClock").textContent = mmss((S.escaped?S.tEnd:Date.now())-S.t0); if(S.started && $("#overlay").hidden) save(); }, 1000);
 setInterval(() => { if(Math.random() < .25 && SC && SC.hall) flicker = .08; }, 6000);
@@ -1206,5 +1405,5 @@ requestAnimationFrame(loop);
 if(!S.started) (S.who ? intro() : profile());
 
 /* 점검용 (자동 테스트) */
-window.__yaja = { S:()=>S, enter, interact, scene:()=>SC, P, unreachable:()=>SC.objs.filter(o=>o.kind!=="deco" && !routeToObj(o)).map(o=>o.label||o.say||o.room||o.kind), solveAll:(id)=>{ Object.keys(ROOMS[id].stations).forEach(k=>S.solved[id+"."+k]=true); S.riddle[id]=true; S.cleared[id]=true; renderSide(); } };
+window.__yaja = { S:()=>S, enter, interact, openBag, openPuzzle, openStation, stationInfo, planRoom, roomHint, scene:()=>SC, P, unreachable:()=>SC.objs.filter(o=>o.kind!=="deco" && !routeToObj(o)).map(o=>o.label||o.say||o.room||o.kind), solveAll:(id)=>{ Object.keys(ROOMS[id].stations).forEach(k=>S.solved[id+"."+k]=true); S.riddle[id]=true; S.cleared[id]=true; renderSide(); }, give:(id)=>addItem(id), done:(rid,key)=>stationDone(rid,key,false) };
 })();
