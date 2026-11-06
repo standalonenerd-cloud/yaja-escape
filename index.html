@@ -54,13 +54,14 @@ canvas{display:block;width:100%;height:auto;image-rendering:pixelated;touch-acti
 .talk .who{font-family:var(--f-display);color:var(--ghost);white-space:nowrap}
 .talk p{margin:0;flex:1}
 .talk button{background:none;border:0;color:var(--muted);font-size:13px;padding:0 2px}
-.pad{position:absolute;left:10px;bottom:10px;display:grid;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(3,54px);gap:3px;opacity:.9}
-.pad button{background:rgba(7,8,12,.7);border:1px solid var(--line);border-radius:6px;font-size:18px;touch-action:none;user-select:none;-webkit-user-select:none}
+.pad{position:absolute;left:10px;bottom:10px;display:grid;grid-template-columns:repeat(3,54px);grid-template-rows:repeat(3,54px);gap:4px}
+.pad button{background:rgba(28,31,46,.92);border:2px solid rgba(242,210,122,.75);border-radius:10px;font-size:22px;color:#f2d27a;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;box-shadow:0 3px 0 rgba(0,0,0,.55),0 0 10px rgba(242,210,122,.18);transition:transform .06s,background .06s}
+.pad button:active,.pad button.on{background:#f2d27a;color:#1a1608;transform:translateY(2px);box-shadow:0 1px 0 rgba(0,0,0,.55)}
 .pad .u{grid-column:2;grid-row:1}.pad .l{grid-column:1;grid-row:2}.pad .r{grid-column:3;grid-row:2}.pad .d{grid-column:2;grid-row:3}
 .act{position:absolute;right:12px;bottom:12px;background:var(--lamp);color:#1a1608;border:0;border-radius:28px;padding:14px 24px;font-size:18px;font-weight:700;max-width:60%;box-shadow:0 0 0 3px rgba(242,210,122,.35),0 4px 0 rgba(0,0,0,.4)}
 .act:disabled{background:rgba(7,8,12,.7);color:var(--muted);border:1px solid var(--line)}
 @media (pointer:fine){.pad{display:none}}
-@media (max-width:600px){.pad{grid-template-columns:repeat(3,42px);grid-template-rows:repeat(3,42px);opacity:.6}.act{font-size:15px;padding:10px 16px;bottom:8px;right:8px}.where{font-size:12px}}
+@media (max-width:600px){.pad{grid-template-columns:repeat(3,42px);grid-template-rows:repeat(3,42px)}.act{font-size:15px;padding:10px 16px;bottom:8px;right:8px}.where{font-size:12px}}
 .helpline{display:flex;flex-wrap:wrap;gap:6px 16px;align-items:center;font-size:14px;color:var(--muted)}
 .helpline kbd{font-family:var(--f-mono);border:1px solid var(--line);border-bottom-width:2px;border-radius:3px;padding:0 5px;font-size:12px;color:var(--fg)}
 .places{display:flex;flex-wrap:wrap;gap:6px}
@@ -205,12 +206,11 @@ label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4
   h1{font-size:26px}.sub{display:none}
   .screen{padding-bottom:156px;background:#0b0d14}
   .pad{left:10px;bottom:8px;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);opacity:1}
-  .pad button{background:#1c1f2b}
   .act{bottom:10px;right:10px;max-width:52%;font-size:16px;padding:14px 18px}
   .bagbtn{top:auto;bottom:84px;right:10px;font-size:16px;padding:8px 16px}
   .talk{top:6px;font-size:13px;line-height:1.5;max-height:58%;overflow:auto;padding:8px 10px}
   .where{font-size:11px;top:6px;left:6px}
-  .helpline:first-of-type{display:none}
+  .helpline.keys{display:none}
 }
 /* 휴대폰 가로: 제목을 숨기고 게임 화면을 화면 높이에 맞춤 */
 @media (pointer:coarse) and (orientation:landscape) and (max-height:520px){
@@ -218,14 +218,40 @@ label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4
   header{display:none}
   .screen canvas{height:calc(100vh - 12px);height:calc(100dvh - 12px);width:auto;max-width:100%;margin:0 auto}
   .screen{background:#07080c}
-  .pad{left:4px;bottom:4px;grid-template-columns:repeat(3,40px);grid-template-rows:repeat(3,40px);opacity:.75}
+  .pad{left:4px;bottom:4px;grid-template-columns:repeat(3,42px);grid-template-rows:repeat(3,42px)}
   .act{bottom:6px;right:6px;font-size:14px;padding:10px 14px;max-width:34%}
   .bagbtn{top:auto;bottom:58px;right:6px}
   .talk{font-size:13px;max-height:55%;overflow:auto;padding:8px 10px}
-  .helpline:first-of-type{display:none}
+  .helpline.keys{display:none}
   .sheet{padding:14px;gap:10px;max-height:calc(100% - 8px)}
   .word{font-size:24px}
   .hero{display:none}
+}
+/* 아이패드 가로(기준 화면): 게임 화면 아래 조작판 · 수첩은 화면 높이에 맞춤 */
+@media (pointer:coarse) and (orientation:landscape) and (min-width:900px) and (min-height:600px){
+  body{padding:8px 14px 0;height:auto}
+  .wrap{max-width:none;gap:8px}
+  h1{font-size:28px}.sub{display:none}
+  .stats{font-size:15px}
+  main{grid-template-columns:minmax(0,1fr) 250px;gap:12px}
+  .screen{padding-bottom:196px;background:#0b0d14}
+  .screen canvas{max-height:calc(100vh - 330px);max-height:calc(100dvh - 330px);width:auto;max-width:100%;margin:0 auto}
+  .screen::after{content:"";position:absolute;left:0;right:0;bottom:196px;height:1px;background:var(--line)}
+  .pad{left:24px;bottom:12px;grid-template-columns:repeat(3,58px);grid-template-rows:repeat(3,58px);gap:5px}
+  .pad button{font-size:26px}
+  .act{bottom:22px;right:22px;max-width:46%;font-size:22px;padding:20px 34px;border-radius:40px}
+  .bagbtn{top:auto;bottom:118px;right:22px;font-size:19px;padding:10px 22px;border-radius:24px}
+  .hud{font-size:18px}
+  .talk{font-size:16px;max-height:46%;overflow:auto}
+  .helpline.keys{display:none}
+  .note{position:sticky;top:10px;max-height:calc(100vh - 84px);max-height:calc(100dvh - 84px);overflow:auto;padding:14px;gap:9px}
+  .note h2{font-size:19px}
+  .route li{font-size:13px}
+  .chip{font-size:15px;padding:6px 12px}
+  .sheet{width:min(780px,100%);padding:24px}
+  .choice{padding:16px;font-size:18px}
+  .btn{padding:13px 20px;font-size:17px}
+  .bag .item{padding:14px}
 }
 /* 나쁜 귀신 */
 .badbox{display:flex;gap:16px;align-items:center;background:#2a0d12;border:1px solid #8e2a33;border-radius:10px;padding:12px 14px}
@@ -269,7 +295,7 @@ label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4
         </div>
         <button class="act" id="actBtn" disabled>살필 것 없음</button>
       </div>
-      <div class="helpline"><span><kbd>방향키</kbd>·<kbd>WASD</kbd> 이동 &nbsp; <kbd>E</kbd>·<kbd>Enter</kbd> 살피기 &nbsp; <kbd>B</kbd> 가방 &nbsp; 화면을 누르면 그곳으로 걸어가요</span></div>
+      <div class="helpline keys"><span><kbd>방향키</kbd>·<kbd>WASD</kbd> 이동 &nbsp; <kbd>E</kbd>·<kbd>Enter</kbd> 살피기 &nbsp; <kbd>B</kbd> 가방 &nbsp; 화면을 누르면 그곳으로 걸어가요</span></div>
       <div class="helpline"><span>이 층의 장소</span><div class="places" id="places"></div></div>
     </section>
 

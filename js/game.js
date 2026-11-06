@@ -905,8 +905,9 @@ cv.addEventListener("pointerdown", e => {
 });
 document.querySelectorAll("#pad button").forEach(b => {
   const d = b.dataset.dir;
-  b.addEventListener("pointerdown", e => { e.preventDefault(); keys[d] = true; b.setPointerCapture(e.pointerId); });
-  ["pointerup","pointercancel","lostpointercapture"].forEach(ev => b.addEventListener(ev, () => keys[d] = false));
+  b.addEventListener("pointerdown", e => { e.preventDefault(); keys[d] = true; b.classList.add("on"); b.setPointerCapture(e.pointerId); });
+  ["pointerup","pointercancel","lostpointercapture"].forEach(ev => b.addEventListener(ev, () => { keys[d] = false; b.classList.remove("on"); }));
+  b.addEventListener("contextmenu", e => e.preventDefault());
 });
 $("#actBtn").onclick = () => interact();
 $("#bagBtn").onclick = () => BAD.on ? talk("가방을 뒤질 시간 없어! 도망쳐!", "야자 귀신") : openBag();
