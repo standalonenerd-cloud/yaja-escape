@@ -193,6 +193,10 @@ label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4
 .dom{display:inline-block;font-size:12px;font-family:var(--f-mono);border-radius:10px;padding:1px 9px;font-weight:700;letter-spacing:.04em}
 .dom-ph{background:#2d4b3a;color:#9fe0b6}.dom-wd{background:#4b3d22;color:#f2d27a}.dom-st{background:#2c3a5e;color:#b9c8ff}
 .places button[data-s=pz]{border-color:#c79bff;color:#e5d6ff}
+.bagnote{background:#2b2340;border:1px solid #c79bff;border-radius:8px;padding:10px 14px;font-size:15px;line-height:1.75;color:#efe6ff}
+.bagnote kbd{font-family:var(--f-mono);border:1px solid #6b5a8e;border-bottom-width:2px;border-radius:3px;padding:0 5px;font-size:12px}
+.bagbtn.pulse{animation:bagPulse 1.4s ease-out 2}
+@keyframes bagPulse{0%{box-shadow:0 0 0 0 rgba(199,155,255,.9);transform:scale(1.15)}60%{box-shadow:0 0 0 14px rgba(199,155,255,0);transform:scale(1)}100%{box-shadow:none}}
 /* 나쁜 귀신 */
 .badbox{display:flex;gap:16px;align-items:center;background:#2a0d12;border:1px solid #8e2a33;border-radius:10px;padding:12px 14px}
 .bface{width:96px;height:96px;flex:none;image-rendering:pixelated;filter:drop-shadow(0 0 12px rgba(255,60,60,.8));animation:badIn .5s ease-out}

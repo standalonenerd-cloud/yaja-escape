@@ -146,7 +146,7 @@ function buildRoom(id){
    ------------------------------------------------------------------ */
 const fresh = () => ({ who:null, lore:0, riddle:{}, rtries:{}, logos:{}, started:false, t0:0, tEnd:0, scene:"c27", px:null, py:null, dir:"up",
   solved:{}, cleared:{}, charms:1, used:0, hidden:{}, qSelf:0, qHelp:0, wrong:0, escaped:false, refl:"", met:{},
-  bag:START_BAG.slice(), pz:{}, ptries:{}, plan:{}, deck:{}, dp:{}, rid:null, got:{}, mused:[], smode:{match:0, type:0}, items:0, caught:0, escapes:0, seenQ:[], lastMiss:null });
+  bag:START_BAG.slice(), pz:{}, ptries:{}, plan:{}, deck:{}, dp:{}, rid:null, got:{}, mused:[], smode:{match:0, type:0}, items:0, caught:0, escapes:0, seenQ:[], lastMiss:null, deskSeed:String(Math.random()).slice(2,10) });
 let S = load();
 setup();
 function load(){ if(TEACHER) return fresh(); try{ const v = JSON.parse(localStorage.getItem(KEY)); return v ? Object.assign(fresh(), v) : fresh(); }catch(e){ return fresh(); } }
@@ -205,7 +205,8 @@ const domTag = d => `<span class="dom dom-${d}">${DOMAIN[d]}</span>`;
 
 /* ---------- 가방 · 물건 퍼즐 ---------- */
 const hasItem = id => S.bag.includes(id);
-function addItem(id){ S.bag.push(id); S.items++; poke(); save(); renderSide(); }
+function addItem(id){ S.bag.push(id); S.items++; poke(); save(); renderSide();
+  const b = $("#bagBtn"); b.classList.remove("pulse"); void b.offsetWidth; b.classList.add("pulse"); }
 function removeItem(id){ const i = S.bag.indexOf(id); if(i >= 0) S.bag.splice(i, 1); save(); renderSide(); }
 const pzKey = (rid, fx) => rid + "." + fx;
 const pzStage = (rid, fx) => S.pz[pzKey(rid, fx)] || 0;
@@ -225,11 +226,11 @@ function roomHint(rid, full){
   for(const fx of Object.keys(R.puzzles || {})){
     if(pzDone(rid, fx) || pzGated(rid, fx)) continue;
     const st = R.puzzles[fx].steps[pzStage(rid, fx)];
-    if(needs(st).some(hasItem)) return `${R.puzzles[fx].name}에 가방 속 물건을 써 봐. 보라색 ? 표시가 뜬 곳이야.`;
+    if(needs(st).some(hasItem)) return full ? `${R.puzzles[fx].name}에 가방 속 물건을 써 봐.` : "가방 속 물건을 쓸 만한 곳이 교실 어딘가에 있을 텐데? 손이 안 닿는 곳을 찾아봐.";
   }
   const left = Object.keys(R.stations).filter(k => !S.solved[rid+"."+k]).map(k => R.stations[k].name);
-  if(left.length) return `노란 ! 표시: ${left.join(", ")}. 문제를 풀면 물건을 줄게.`;
-  for(const fx of Object.keys(R.puzzles || {})) if(!pzDone(rid, fx) && !pzGated(rid, fx)) return R.puzzles[fx].steps[pzStage(rid, fx)].tip;
+  if(left.length) return full ? `아직 ${left.join(", ")}에 문제가 숨어 있어. 풀면 물건을 줄게.` : `교실 어딘가에 문제가 ${left.length}곳 더 숨어 있어. 칠판, 교탁, 창문, 사물함… 직접 살펴봐.`;
+  for(const fx of Object.keys(R.puzzles || {})) if(!pzDone(rid, fx) && !pzGated(rid, fx)) return (full ? R.puzzles[fx].name + " — " : "") + R.puzzles[fx].steps[pzStage(rid, fx)].tip;
   return "가방을 열어 물건들을 살펴봐.";
 }
 const nextRequired = () => CHAIN.find(id => !isCleared(id)) || null;
@@ -430,13 +431,13 @@ function actText(o){
     if(TEACHER || !isKeyRoom(SC.room) || isCleared(SC.room)) return "복도로 나가기";
     return hasItem("key") ? "열쇠로 문 열기" : "잠긴 문 · 열쇠 필요";
   }
-  if(o.kind === "puzzle") return pzGated(SC.room, o.fx) ? `${FIX_NAME[o.fx]} 살펴보기` : pzDone(SC.room, o.fx) ? `${o.label} 살펴보기` : `${o.label} · 물건 쓰기`;
+  if(o.kind === "puzzle") return pzGated(SC.room, o.fx) ? `${FIX_NAME[o.fx]} 살펴보기` : `${o.label} 살펴보기`;
   if(o.kind === "logo") return "교표 살펴보기";
   if(o.kind === "desk") return "책상 살펴보기";
   if(o.kind === "stairC") return SC.id === "F4" ? "3층으로 내려가기" : "4층으로 올라가기";
   if(o.kind === "stairE") return o.exit ? "동편 계단으로 탈출" : (stairDownOpen() ? "동편 계단으로 3층 내려가기" : "동편 계단 · 잠김");
   if(o.kind === "locked") return `${o.label} · 출입 금지`;
-  if(o.kind === "station") return `${o.label} 살피기`;
+  if(o.kind === "station") return `${o.label} 살펴보기`;
   return o.label ? `${o.label} 살펴보기` : "살펴보기";
 }
 function interact(o){
@@ -660,14 +661,14 @@ function drawMarks(t){
     if(o.kind !== "station") continue;
     const x = o.c*T, y = o.r*T, w = o.w*T, h = o.h*T, cx = x + (o.w >= 6 ? w*0.25 : w/2);
     const done = S.solved[SC.room+"."+o.key];
-    if(done){ bubble(cx, y + 2, "✓", K.exit, "#08140d", 11); plate(o.label, cx, y + h/2 + 6, 11); }
-    else { glowRect(x, y, w, h, "#f2d27a", t, 4); beacon(cx, y - 2, "!", "#f2d27a", t, 14); plate(o.label, cx, y + h/2 + 8, 12); }
+    if(done) bubble(cx, y + 2, "✓", K.exit, "#08140d", 9);
+    else if(TEACHER){ glowRect(x, y, w, h, "#f2d27a", t, 3); plate(o.label, cx, y + h/2 + 8, 12); }
   }
   for(const o of SC.objs){
     if(o.kind !== "puzzle" || pzGated(SC.room, o.fx)) continue;
     const x = o.c*T, y = o.r*T, w = o.w*T, h = o.h*T, cx = x + (o.w >= 6 ? w*0.25 : w/2);
-    if(pzDone(SC.room, o.fx)) bubble(cx, y + 2, "✓", "#c79bff", "#1a1030", 10);
-    else { glowRect(x, y, w, h, "#c79bff", t, 4); beacon(cx, y - 2, "?", "#c79bff", t, 14); plate(o.label, cx, y + h/2 + 8, 12); }
+    if(pzDone(SC.room, o.fx)) bubble(cx, y + 2, "✓", "#c79bff", "#1a1030", 9);
+    else if(TEACHER){ glowRect(x, y, w, h, "#c79bff", t, 3); plate(o.label, cx, y + h/2 + 8, 12); }
   }
   const e = SC.objs.find(o => o.kind === "exit");
   if(e){ const open = !isKeyRoom(SC.room) || isCleared(SC.room) || TEACHER, key = !open && hasItem("key");
@@ -819,7 +820,7 @@ function drawFog(t){
   hole(px+dx*76, py+dy*64, 24, 130, .95);
   for(const o of SC.objs){
     if(o.kind==="stairC" || o.kind==="stairE") hole(o.door[0]*T+T/2-camX, o.door[1]*T+T/2-camY, 4, 46, .7);
-    if(o.kind==="station" || o.kind==="puzzle" || o.kind==="exit" || (o.kind==="room" && o.room===nextRequired())){ const dc = o.door||[o.c+o.w/2-.5, o.r+o.h/2]; hole(dc[0]*T+T/2-camX, dc[1]*T-camY, 4, 52, .62); }
+    if(((o.kind==="station" || o.kind==="puzzle") && TEACHER) || o.kind==="exit" || (o.kind==="room" && o.room===nextRequired())){ const dc = o.door||[o.c+o.w/2-.5, o.r+o.h/2]; hole(dc[0]*T+T/2-camX, dc[1]*T-camY, 4, 52, .62); }
   }
   const g = ghostPos(); if(g) hole(g[0]-camX, g[1]-24-camY, 4, 50, .85);
   if(BAD.on) hole(BAD.x-camX, BAD.y-camY, 4, 40, .55);
@@ -954,7 +955,7 @@ function renderSide(){
 }
 function renderPlaces(){
   if(!SC) return;
-  const list = SC.objs.filter(o => ["room","station","exit","stairC","stairE"].includes(o.kind) || (o.kind === "puzzle" && !pzGated(SC.room, o.fx)));
+  const list = SC.objs.filter(o => ["room","exit","stairC","stairE"].includes(o.kind) || (TEACHER && (o.kind === "station" || (o.kind === "puzzle" && !pzGated(SC.room, o.fx)))));
   $("#places").innerHTML = list.map((o,i) => {
     let s = "";
     if(o.kind==="room") s = isCleared(o.room) ? "done" : !roomOpen(o.room) ? "lock" : o.room===nextRequired() ? "next" : "";
@@ -980,7 +981,7 @@ function ghostGuide(){
   if(!SC.hall && SC.room === n) return roomHint(n, true);
   const fl = ["c22","c21"].includes(n) ? "3층" : "4층";
   const where = (SC.id === "F4" && fl === "3층") ? " 복도 왼쪽 끝 동편 계단으로 내려가면 돼." : "";
-  return `다음은 ${fl} ${ROOMS[n].name}야. 이번 교실은 '${ROOMS[n].unit}'.${where} 문 위에 ! 표시가 뜬 교실로 들어와.`;
+  return `다음은 ${fl} ${ROOMS[n].name}야. 이번 교실은 '${ROOMS[n].unit}'.${where} 문이 반짝이는 교실로 들어와.`;
 }
 function openGhost(){
   const lines = [fmt("왔구나, {call}. 뭐가 궁금해?"), fmt("{name}, 또 왔네?"), "킥킥, 나한테 말을 거는 애는 처음이야.", "무서워? 문제만 풀면 아무 일도 없어."];
@@ -1066,16 +1067,24 @@ function charmHint(replay, box, hint, onUse){
 /* ---------- 교실 책상: 책상마다 다른 문구, 두 곳엔 숨은 OX 게임 ---------- */
 function seeded(str){ let h = 1779033703 ^ str.length; for(const ch of str){ h = Math.imul(h ^ ch.charCodeAt(0), 3432918353); h = h << 13 | h >>> 19; }
   return () => { h = Math.imul(h ^ h >>> 16, 2246822507); h = Math.imul(h ^ h >>> 13, 3266489909); h ^= h >>> 16; return (h >>> 0) / 4294967296; }; }
-const DESK_MSGS = (() => { const out = {};
-  CHAIN.forEach((rid, i) => {
-    const list = [];   // 교실마다 공부 3 · 먹을거리 2 · 낙서 3 · 캐릭터 2 · 아이돌 2
-    Object.entries({ study:3, food:2, doodle:3, chara:2, idol:2 }).forEach(([c, n]) => { if(DESK_TEXT[c]) for(let k=0;k<n;k++) list.push(DESK_TEXT[c][(i*n+k) % DESK_TEXT[c].length]); });
-    const rnd = seeded(rid); for(let a=list.length-1;a>0;a--){ const b = Math.floor(rnd()*(a+1)); [list[a],list[b]] = [list[b],list[a]]; }
-    const hidden = new Set(); while(hidden.size < 1) hidden.add(Math.floor(rnd()*list.length));
-    out[rid] = { list, hidden };
-  }); return out; })();
+let DESK_CACHE = null;
+function deskMsgs(rid){   // 교실마다 공부 2 · 입시 2 ·먹을거리 2 ·소지품 2 · 낙서 2 ·캐릭터 1 · 아이돌 1 (판마다 달라짐)
+  if(!DESK_CACHE || DESK_CACHE.seed !== S.deskSeed){
+    const rnd0 = seeded("desk" + S.deskSeed), out = { seed:S.deskSeed };
+    const mix = { study:2, exam:2, food:2, stuff:2, doodle:2, chara:1, idol:1 }, start = {};
+    for(const c in mix) start[c] = Math.floor(rnd0() * (DESK_TEXT[c] ? DESK_TEXT[c].length : 1));
+    CHAIN.forEach((id, i) => {
+      const list = [];
+      Object.entries(mix).forEach(([c, n]) => { const a = DESK_TEXT[c]; if(a) for(let k=0;k<n;k++) list.push(a[(start[c] + i*n + k) % a.length]); });
+      const rnd = seeded(id + S.deskSeed); for(let a=list.length-1;a>0;a--){ const b = Math.floor(rnd()*(a+1)); [list[a],list[b]] = [list[b],list[a]]; }
+      out[id] = { list, hidden: new Set([Math.floor(rnd()*list.length)]) };
+    });
+    DESK_CACHE = out;
+  }
+  return DESK_CACHE[rid];
+}
 function openDesk(j){
-  const rid = SC.room, D = DESK_MSGS[rid], msg = D.list[j], key = rid + "." + j;
+  const rid = SC.room, D = deskMsgs(rid), msg = D.list[j], key = rid + "." + j;
   if(!D.hidden.has(j)) return talk(msg, "책상");
   if(S.hidden[key]) return talk(msg + " 서랍은 이미 비어 있다.", "책상");
   show(`<span class="eyebrow">${ROOMS[rid].name} · 책상</span><h3>서랍 속 노란 종이</h3>
@@ -1364,7 +1373,7 @@ function stationDone(roomId, key, replay){
     const it = ITEMS[st.reward];
     show(`<span class="eyebrow">${R.name} · ${esc(st.name)}</span><h3>물건을 얻었어요!</h3>
       <div class="getcharm"><span style="font-size:44px;animation:charmIn .6s ease-out">${it.icon}</span><span>${esc(it.name)}<br><small style="font-weight:400;color:var(--fg)">${esc(it.desc)}</small></span></div>
-      <p class="say">물건은 가방(🎒)에 들어가요. 보라색 <b>?</b> 표시가 뜬 곳에 쓰거나, 가방에서 두세 개를 골라 합칠 수 있어요.</p>
+      <div class="bagnote">🎒 <b>얻은 물건은 가방에 들어가요.</b> 화면 오른쪽 위 <b>🎒 가방</b> 버튼이나 <kbd>B</kbd> 키로 열어요.<br>🔗 <b>물건은 합칠 수 있어요.</b> 가방에서 두세 개를 골라 <b>합치기</b>를 누르면 새 물건이 돼요.<br>✋ 손이 닿지 않는 곳을 살펴보면 가방 속 물건을 쓸 수 있어요.</div>
       <div class="btnrow"><button class="btn hot" id="rok">가방에 넣기</button><button class="btn ghost" id="rbag">가방 열어 보기</button></div>`,
     () => { $("#rok").onclick = () => { hide(); setTimeout(() => talk(roomHint(roomId)), 200); }; $("#rbag").onclick = openBag; });
     return;
@@ -1385,7 +1394,7 @@ function openBag(msg){
   const sel = new Set();
   const render = note => {
     show(`<div id="bagSheet"></div><span class="eyebrow">가방 · 물건 ${S.bag.length}개</span><h3>🎒 가방</h3>
-      <p class="say">물건을 눌러 고른 뒤 <b>합치기</b>를 누르면 두세 개를 합칠 수 있어요. 물건을 쓰려면 보라색 <b>?</b> 표시가 뜬 곳으로 가세요.</p>
+      <p class="say">물건을 눌러 고른 뒤 <b>합치기</b>를 누르면 두세 개를 합칠 수 있어요. 물건을 쓰려면 손이 닿지 않는 곳을 찾아가 살펴보세요.</p>
       <div class="bag">${S.bag.length ? S.bag.map((id,k) => `<div class="item ${sel.has(k)?"on":""}" data-k="${k}" role="button" tabindex="0" aria-pressed="${sel.has(k)}"><span class="ic">${ITEMS[id].icon}</span><span><b>${esc(ITEMS[id].name)}</b><small>${esc(ITEMS[id].desc)}</small></span>${id === "lockbox" ? `<button class="btn hot sm" data-open="1">열어 보기</button>` : ""}</div>`).join("") : `<p class="say">가방이 비어 있어요.</p>`}</div>
       <div id="bfb">${note || ""}</div>
       <div class="btnrow"><button class="btn hot" id="bmix" ${sel.size >= 2 ? "" : "disabled"}>고른 물건 합치기 (${sel.size}개)</button><button class="btn ghost" id="bx">닫기</button></div>`,
@@ -1405,7 +1414,7 @@ function openBag(msg){
     if(r){
       r.in.forEach(removeItem); addItem(r.out); sel.clear();
       const it = ITEMS[r.out];
-      return render(`<div class="getcharm"><span style="font-size:40px">${it.icon}</span><span>${esc(it.name)} 완성!<br><small style="font-weight:400;color:var(--fg)">${esc(r.say)}</small></span></div>`);
+      return render(`<div class="getcharm"><span style="font-size:40px">${it.icon}</span><span>${esc(it.name)} 완성! 가방에 넣었어요.<br><small style="font-weight:400;color:var(--fg)">${esc(r.say)}</small></span></div>`);
     }
     const part = allRecipes().find(r => ids.every(i => r.in.includes(i)));
     if(!TEACHER){ S.wrong++; save(); }
@@ -1423,7 +1432,7 @@ function openPuzzle(rid, fx){
   const render = note => show(`<span class="eyebrow">${ROOMS[rid].name} · 손이 닿지 않는 곳 · ${stage+1}/${P.steps.length}단계</span><h3>${esc(P.name)}</h3>
     <div class="chalk" style="background:#2b2340;border-color:#6b5a8e">${esc(step.look)}</div>
     <p class="say">가방에서 쓸 물건을 고르세요.</p>
-    <div class="usebag">${S.bag.length ? S.bag.map(id => `<button class="choice ${TEACHER && needs(step).includes(id) ? "key" : ""}" data-id="${id}">${ITEMS[id].icon} ${esc(ITEMS[id].name)}</button>`).join("") : `<p class="say">가방이 비어 있어요. 노란 ! 표시에서 문제를 풀어 물건을 얻으세요.</p>`}</div>
+    <div class="usebag">${S.bag.length ? S.bag.map(id => `<button class="choice ${TEACHER && needs(step).includes(id) ? "key" : ""}" data-id="${id}">${ITEMS[id].icon} ${esc(ITEMS[id].name)}</button>`).join("") : `<p class="say">가방이 비어 있어요. 교실 곳곳을 살펴 문제를 풀고 물건을 얻으세요.</p>`}</div>
     <div id="pfb">${note || ""}${TEACHER ? `<p class="hint">교사용: 필요한 물건 — ${needs(step).map(i => ITEMS[i].name).join(" 또는 ")}</p>` : ""}</div>
     <div class="btnrow" id="pctl"><button class="btn charmbtn" id="hintB">부적으로 힌트 보기 (${TEACHER?"무료":"보유 "+S.charms+"장"})</button><button class="btn ghost" id="pbag">가방 열기</button><button class="btn ghost" id="px">닫기</button></div>`,
   () => {
@@ -1437,7 +1446,7 @@ function openPuzzle(rid, fx){
       const more = !pzDone(rid, fx);
       show(`<span class="eyebrow">${ROOMS[rid].name} · ${esc(P.name)}</span><h3>${more ? "됐다!" : "해냈어요!"}</h3>
         <div class="fb ok"><span>${esc(step.ok)}</span></div>
-        ${step.give ? `<div class="getcharm"><span style="font-size:40px">${ITEMS[step.give].icon}</span><span>${esc(ITEMS[step.give].name)}을(를) 얻었어요</span></div>` : ""}
+        ${step.give ? `<div class="getcharm"><span style="font-size:40px">${ITEMS[step.give].icon}</span><span>${esc(ITEMS[step.give].name)}을(를) 얻었어요. 가방에 넣었어요!</span></div>` : ""}
         <div class="btnrow"><button class="btn hot" id="pnx">${more ? "계속 살펴보기" : "닫기"}</button></div>`,
       () => $("#pnx").onclick = () => more ? openPuzzle(rid, fx) : (hide(), setTimeout(() => talk(roomHint(rid)), 200)));
       return;
@@ -1488,8 +1497,9 @@ function profile(){
 function intro(){
   show(`<img class="hero" src="assets/title.jpg" alt="밤의 학교 복도에서 손전등을 든 학생과 손을 흔드는 귀신"><span class="eyebrow">밤 10시 · 본관 4층</span><h3>야자 탈출</h3>
     <div class="story">${STORY.intro.map(l=>`<p>${esc(fmt(l))}</p>`).join("")}</div>
-    <p class="say">방향키나 WASD로 움직이고, E로 살펴요. 휴대폰에서는 화면 방향키를 쓰거나 가고 싶은 곳을 누르세요. 복도에서 문 위에 ?가 뜬 곳은 들러 볼 수 있는 특별실이에요.</p>
-    <p class="say" style="font-size:14px">노란 <b>!</b>에서 문제를 풀면 물건을 얻어요. 문제는 음운·단어·문장에서 무작위로 나와요. 물건은 가방(🎒, B 키)에 모이고, 보라색 <b>?</b>가 뜬 곳에 쓰거나 두세 개를 합칠 수 있어요. 손이 닿지 않는 곳의 자물쇠 상자를 꺼내 수수께끼를 풀면 교실 열쇠가 나와요.</p>
+    <p class="say">방향키나 WASD로 움직이고, E로 살펴요. 휴대폰에서는 화면 방향키를 쓰거나 가고 싶은 곳을 누르세요. 복도에서 문 위에 ?가 뜬 곳은 들러 볼 수 있는 특별실이에요. 가방은 <kbd>B</kbd> 키로 열어요.</p>
+    <p class="say" style="font-size:14px">문제는 교실 곳곳(칠판, 교탁, 창문, 사물함, 시계…)에 숨어 있어요. 표시가 없으니 직접 다가가 살펴보세요. 반짝이는 건 나가는 문뿐이에요. 문제는 음운·단어·문장에서 무작위로 나와요.</p>
+    <div class="bagnote">🎒 <b>얻은 물건은 가방에 들어가요.</b> 화면 오른쪽 위 <b>🎒 가방</b> 버튼이나 <kbd>B</kbd> 키로 열어요.<br>🔗 <b>물건은 합칠 수 있어요.</b> 가방에서 두세 개를 골라 <b>합치기</b>를 누르면 새 물건이 돼요.<br>✋ 손이 닿지 않는 곳에 물건을 쓰면 자물쇠 상자가 나와요. 수수께끼를 풀면 교실 열쇠!</div>
     <p class="say" style="font-size:14px;color:#ffb3b3">조심하세요! 한 문제를 세 번 틀리거나 교실에서 너무 오래 꾸물거리면 <b>나쁜 귀신</b>이 쫓아와요. 잡히면 방금 틀린 문제와 같은 갈래의 응용 문제를 맞혀야 풀려나요. 응용 문제를 틀리면 착한 야자 귀신이 몰래 힌트를 알려 줘요.</p>
     <p class="say" style="font-size:14px">부적은 막힐 때 힌트를 보는 아이템이에요. 한 장을 가지고 시작하고, 교실마다 책상 하나의 서랍에 숨은 OX 게임과 특별실 덤 문제로 더 얻을 수 있어요. 틀려도 실패하지 않아요.</p>
     <div class="btnrow"><button class="btn hot" id="go">교실 둘러보기</button></div>`,
