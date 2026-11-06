@@ -1546,5 +1546,5 @@ requestAnimationFrame(loop);
 if(!S.started) (S.who ? intro() : profile());
 
 /* 점검용 (자동 테스트) */
-window.__yaja = { S:()=>S, enter, interact, openBag, openPuzzle, openStation, stationInfo, planRoom, roomHint, scene:()=>SC, P, unreachable:()=>SC.objs.filter(o=>o.kind!=="deco" && !routeToObj(o)).map(o=>o.label||o.say||o.room||o.kind), solveAll:(id)=>{ Object.keys(ROOMS[id].stations).forEach(k=>S.solved[id+"."+k]=true); S.riddle[id]=true; S.cleared[id]=true; renderSide(); }, give:(id)=>addItem(id), chase:(m)=>startChase(m||S.lastMiss,"wrong",null), bad:()=>BAD, idle:(sec)=>{ lastProg = Date.now() - sec*1000; }, done:(rid,key)=>stationDone(rid,key,false) };
+window.__yaja = { cam:()=>[camX,camY,vw,vh], S:()=>S, enter, interact, openBag, openPuzzle, openStation, stationInfo, planRoom, roomHint, scene:()=>SC, P, unreachable:()=>SC.objs.filter(o=>o.kind!=="deco" && !routeToObj(o)).map(o=>o.label||o.say||o.room||o.kind), solveAll:(id)=>{ Object.keys(ROOMS[id].stations).forEach(k=>S.solved[id+"."+k]=true); S.riddle[id]=true; S.cleared[id]=true; renderSide(); }, give:(id)=>addItem(id), chase:(m)=>startChase(m||S.lastMiss,"wrong",null), bad:()=>BAD, idle:(sec)=>{ lastProg = Date.now() - sec*1000; }, done:(rid,key)=>stationDone(rid,key,false) };
 })();

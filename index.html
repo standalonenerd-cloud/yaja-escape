@@ -154,7 +154,8 @@ label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4
 @keyframes shake{25%{transform:translateX(-5px)}75%{transform:translateX(5px)}}
 .mline{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
 .mline polyline{fill:none;stroke:#4fd18b;stroke-width:5;stroke-linecap:round;stroke-linejoin:round}
-@media (max-width:520px){.tile{min-height:48px;font-size:15px}.tile.big{font-size:24px}}
+@media (max-width:520px){.tile{min-height:48px;font-size:14px;padding:2px}.tile.big{font-size:24px}.mgrid{gap:4px;padding:4px}}
+@media (max-width:360px){.tile{font-size:12px}}
 .hud{position:absolute;right:10px;top:10px;display:flex;align-items:center;gap:4px;background:rgba(7,8,12,.8);border:1px solid #e8d27a;border-radius:16px;padding:2px 12px 2px 6px;font-family:var(--f-mono);font-size:16px;font-weight:700;color:#e8d27a}
 .hud img{width:16px;height:24px;object-fit:contain}
 .deskmsg{font-size:18px;line-height:1.7;margin:0;background:var(--raise);border-radius:6px;padding:14px 16px}
@@ -197,6 +198,35 @@ label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4
 .bagnote kbd{font-family:var(--f-mono);border:1px solid #6b5a8e;border-bottom-width:2px;border-radius:3px;padding:0 5px;font-size:12px}
 .bagbtn.pulse{animation:bagPulse 1.4s ease-out 2}
 @keyframes bagPulse{0%{box-shadow:0 0 0 0 rgba(199,155,255,.9);transform:scale(1.15)}60%{box-shadow:0 0 0 14px rgba(199,155,255,0);transform:scale(1)}100%{box-shadow:none}}
+/* 휴대폰 세로: 방향키·살피기·가방 버튼을 게임 화면 아래 조작판으로 */
+@media (pointer:coarse) and (orientation:portrait) and (max-width:700px){
+  body{padding-inline:8px;padding-block:8px 24px}
+  header{gap:4px 12px}
+  h1{font-size:26px}.sub{display:none}
+  .screen{padding-bottom:156px;background:#0b0d14}
+  .pad{left:10px;bottom:8px;grid-template-columns:repeat(3,46px);grid-template-rows:repeat(3,46px);opacity:1}
+  .pad button{background:#1c1f2b}
+  .act{bottom:10px;right:10px;max-width:52%;font-size:16px;padding:14px 18px}
+  .bagbtn{top:auto;bottom:84px;right:10px;font-size:16px;padding:8px 16px}
+  .talk{top:6px;font-size:13px;line-height:1.5;max-height:58%;overflow:auto;padding:8px 10px}
+  .where{font-size:11px;top:6px;left:6px}
+  .helpline:first-of-type{display:none}
+}
+/* 휴대폰 가로: 제목을 숨기고 게임 화면을 화면 높이에 맞춤 */
+@media (pointer:coarse) and (orientation:landscape) and (max-height:520px){
+  body{padding:4px 8px 24px}
+  header{display:none}
+  .screen canvas{height:calc(100vh - 12px);height:calc(100dvh - 12px);width:auto;max-width:100%;margin:0 auto}
+  .screen{background:#07080c}
+  .pad{left:4px;bottom:4px;grid-template-columns:repeat(3,40px);grid-template-rows:repeat(3,40px);opacity:.75}
+  .act{bottom:6px;right:6px;font-size:14px;padding:10px 14px;max-width:34%}
+  .bagbtn{top:auto;bottom:58px;right:6px}
+  .talk{font-size:13px;max-height:55%;overflow:auto;padding:8px 10px}
+  .helpline:first-of-type{display:none}
+  .sheet{padding:14px;gap:10px;max-height:calc(100% - 8px)}
+  .word{font-size:24px}
+  .hero{display:none}
+}
 /* 나쁜 귀신 */
 .badbox{display:flex;gap:16px;align-items:center;background:#2a0d12;border:1px solid #8e2a33;border-radius:10px;padding:12px 14px}
 .bface{width:96px;height:96px;flex:none;image-rendering:pixelated;filter:drop-shadow(0 0 12px rgba(255,60,60,.8));animation:badIn .5s ease-out}
