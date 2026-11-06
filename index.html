@@ -193,6 +193,16 @@ label{font-size:14px;color:var(--muted);display:flex;flex-direction:column;gap:4
 .dom{display:inline-block;font-size:12px;font-family:var(--f-mono);border-radius:10px;padding:1px 9px;font-weight:700;letter-spacing:.04em}
 .dom-ph{background:#2d4b3a;color:#9fe0b6}.dom-wd{background:#4b3d22;color:#f2d27a}.dom-st{background:#2c3a5e;color:#b9c8ff}
 .places button[data-s=pz]{border-color:#c79bff;color:#e5d6ff}
+/* 나쁜 귀신 */
+.badbox{display:flex;gap:16px;align-items:center;background:#2a0d12;border:1px solid #8e2a33;border-radius:10px;padding:12px 14px}
+.bface{width:96px;height:96px;flex:none;image-rendering:pixelated;filter:drop-shadow(0 0 12px rgba(255,60,60,.8));animation:badIn .5s ease-out}
+@keyframes badIn{from{transform:scale(.4);opacity:0}to{transform:none;opacity:1}}
+.eyebrow.bad{color:#ff8a8a}
+.bsay{font-size:18px;line-height:1.6;color:#ffc2c2;margin:4px 0 0}
+.gline.bad{color:#ffb3b3;border-color:#8e2a33;background:rgba(142,42,51,.25)}
+.goodhelp{display:flex;gap:12px;align-items:center;background:rgba(185,200,255,.1);border:1px solid var(--ghost);border-radius:10px;padding:10px 12px}
+.goodhelp img{width:52px;height:auto;flex:none;filter:drop-shadow(0 0 8px rgba(185,200,255,.7))}
+.goodhelp div{display:flex;flex-direction:column;gap:2px;color:var(--ghost);font-size:15px}
 </style>
 </head>
 <body>
